@@ -33,6 +33,23 @@ function buildServer(): McpServer {
 const app = express();
 app.use(express.json({ limit: "100kb" }));
 
+// Log every request (token masked) so Render's Logs tab shows what the bMA and FLOW send.
+app.use((req, res, next) => {
+  const started = Date.now();
+  const safePath = req.path.replace(/^\/mcp\/.+/, "/mcp/<key>");
+  const rpc = req.body && typeof req.body === "object" ? req.body : null;
+  const detail =
+    rpc?.method === "tools/call"
+      ? ` tools/call ${rpc.params?.name} ${JSON.stringify(rpc.params?.arguments ?? {}).slice(0, 300)}`
+      : rpc?.method
+        ? ` ${rpc.method}`
+        : "";
+  res.on("finish", () => {
+    console.log(`${req.method} ${safePath} -> ${res.statusCode} (${Date.now() - started}ms)${detail}`);
+  });
+  next();
+});
+
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });

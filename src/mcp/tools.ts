@@ -9,7 +9,9 @@ import {
   getTicketByCallId,
   getTicketByRef,
   getTicketsByPhone,
+  getCallLogsByPhone,
   matchKnownIncidents,
+  saveCallLog,
   spokenRef,
 } from "../store/ticketStore.js";
 import type { ToolError } from "../types/incident.types.js";
@@ -77,6 +79,13 @@ export function registerTools(server: McpServer): void {
         found: true,
         customer,
         open_ticket_refs: open.map((t) => t.ticket_ref),
+        // Earlier calls logged with log_call. Only use these once the caller is verified.
+        recent_calls: getCallLogsByPhone(customer.phone).map((c) => ({
+          logged_at: c.logged_at,
+          call_reason: c.call_reason,
+          ticket_ref: c.ticket_ref,
+          summary: c.summary,
+        })),
         speak: open.length
           ? `Thanks ${customer.name.split(" ")[0]}, I can see you are calling from ${customer.organisation}. You already have ${open.length} open ticket${open.length > 1 ? "s" : ""} with us. Is this about ${open.length > 1 ? "one of those" : "that"}, or something new?`
           : `Thanks ${customer.name.split(" ")[0]}, I can see you are calling from ${customer.organisation}. What has happened?`,
@@ -190,6 +199,61 @@ export function registerTools(server: McpServer): void {
             ? "Because this is critical, I am putting you through to a security analyst now."
             : "Is there anything else you can tell me that would help the team?"),
       });
+    }),
+  );
+
+  server.registerTool(
+    "log_call",
+    {
+      title: "Log the call",
+      description:
+        "Save the outcome of this call. Call this ONCE, just before every handover, on every call, including failed verification and status checks. FLOW reads it back by call_id to update the CKS record.",
+      inputSchema: {
+        call_id: z.string().describe("storm @ID for this call"),
+        caller_phone: z.string().optional(),
+        caller_name: z.string().optional(),
+        organisation: z.string().optional(),
+        verification_status: z.enum(["Verified", "Unverified", "Failed"]),
+        call_reason: z.enum(["new_incident", "existing_ticket", "failed_verification", "other"]),
+        ticket_ref: z.string().optional().describe("Only a reference returned by create_ticket or get_ticket_status"),
+        advice_given: z.string().optional(),
+        transfer_priority: z.enum(["Urgent", "Standard"]),
+        summary: z.string().describe("Up to five sentences, facts only"),
+        notes: z.string().optional().describe("Anything the handler must know: distress, press, suspicious behaviour, tool failures"),
+      },
+    },
+    safe((args: {
+      call_id: string;
+      caller_phone?: string;
+      caller_name?: string;
+      organisation?: string;
+      verification_status: "Verified" | "Unverified" | "Failed";
+      call_reason: "new_incident" | "existing_ticket" | "failed_verification" | "other";
+      ticket_ref?: string;
+      advice_given?: string;
+      transfer_priority: "Urgent" | "Standard";
+      summary: string;
+      notes?: string;
+    }) => {
+      let ticketRef = args.ticket_ref ?? getTicketByCallId(args.call_id)?.ticket_ref ?? null;
+      if (ticketRef && !getTicketByRef(ticketRef)) {
+        return fail("unknown_ticket_ref", `${ticketRef} does not exist. Only use a reference returned by create_ticket or get_ticket_status.`);
+      }
+      if (ticketRef) ticketRef = getTicketByRef(ticketRef)!.ticket_ref;
+      const log = saveCallLog({
+        call_id: args.call_id,
+        caller_phone: args.caller_phone ?? null,
+        caller_name: args.caller_name ?? null,
+        organisation: args.organisation ?? null,
+        verification_status: args.verification_status,
+        call_reason: args.call_reason,
+        ticket_ref: ticketRef,
+        advice_given: args.advice_given ?? null,
+        transfer_priority: args.transfer_priority,
+        summary: args.summary.slice(0, 1500),
+        notes: args.notes ?? null,
+      });
+      return ok({ logged: true, call_id: log.call_id, ticket_ref: log.ticket_ref, speak: "" });
     }),
   );
 

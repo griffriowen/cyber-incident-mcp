@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type {
+  CallLog,
   Customer,
   IncidentCategory,
   KnownIncident,
@@ -31,6 +32,38 @@ const customers: Customer[] = readJson<Customer[]>(
   path.join(DATA_DIR, "mock_customers.json"),
   [],
 );
+
+const CALL_STORE_PATH = path.resolve(
+  process.cwd(),
+  process.env.CALL_STORE_PATH ?? "data/mock/calls.json",
+);
+let calls: CallLog[] = readJson<CallLog[]>(CALL_STORE_PATH, []);
+
+/** Saves (or replaces) the log for a call. One log per call_id. */
+export function saveCallLog(log: Omit<CallLog, "logged_at">): CallLog {
+  const entry: CallLog = { ...log, logged_at: new Date().toISOString() };
+  calls = calls.filter((c) => c.call_id !== log.call_id);
+  calls.push(entry);
+  try {
+    fs.writeFileSync(CALL_STORE_PATH, JSON.stringify(calls, null, 2));
+  } catch (err) {
+    console.error("Failed to persist call log:", (err as Error).message);
+  }
+  return entry;
+}
+
+export function getCallLog(callId: string): CallLog | null {
+  return calls.find((c) => c.call_id === callId) ?? null;
+}
+
+/** Most recent logged calls from this number, newest first. */
+export function getCallLogsByPhone(phone: string, limit = 3): CallLog[] {
+  const target = normalisePhone(phone);
+  return calls
+    .filter((c) => normalisePhone(c.caller_phone) === target)
+    .sort((a, b) => b.logged_at.localeCompare(a.logged_at))
+    .slice(0, limit);
+}
 
 function persist(): void {
   try {

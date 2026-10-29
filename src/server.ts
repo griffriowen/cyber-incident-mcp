@@ -5,7 +5,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { registerTools } from "./mcp/tools.js";
-import { getTicketByCallId, spokenRef } from "./store/ticketStore.js";
+import { getCallLog, getTicketByCallId, getTicketByRef, spokenRef } from "./store/ticketStore.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const API_KEY = process.env.MCP_API_KEY;
@@ -98,32 +98,50 @@ app.post("/api/ticket/by-call", auth, (req, res) => {
     res.status(400).json({ found: false, agent_assist_text: "No call ID supplied." });
     return;
   }
-  const t = getTicketByCallId(callId);
-  if (!t) {
+  // Every field is always present (empty string when unknown) so FLOW object mappings stay stable.
+  const log = getCallLog(callId);
+  const t = getTicketByCallId(callId) ?? (log?.ticket_ref ? getTicketByRef(log.ticket_ref) : null);
+  if (!t && !log) {
     res.json({
       found: false,
-      agent_assist_text: "No security ticket was raised by the virtual agent on this call. Please triage manually.",
+      call_logged: false,
+      ticket_ref: "", severity: "", category: "", status: "", assigned_team: "",
+      affected_system: "", caller_name: "", organisation: "", description: "",
+      containment_actions_taken: "", linked_incident_ref: "",
+      verification_status: "", call_reason: "", advice_given: "", transfer_priority: "",
+      summary: "", notes: "",
+      agent_assist_text: "The virtual agent did not log this call or raise a ticket. Please triage manually.",
     });
     return;
   }
+  const assist = t
+    ? `${t.severity} ${t.category.replace("_", " ")} ticket ${t.ticket_ref} for ${t.caller_name}` +
+      `${t.organisation ? ` (${t.organisation})` : ""}. Affected system: ${t.affected_system}.` +
+      `${t.linked_incident_ref ? ` Linked to known incident ${t.linked_incident_ref}.` : ""}` +
+      `${log ? ` Caller ${log.verification_status.toLowerCase()}.` : ""}${log?.notes ? ` Note: ${log.notes}` : ""}`
+    : `No ticket raised. Caller ${log!.caller_name ?? "unknown"} ${log!.verification_status.toLowerCase()}. ${log!.summary}`;
   res.json({
     found: true,
-    ticket_ref: t.ticket_ref,
-    severity: t.severity,
-    category: t.category,
-    status: t.status,
-    assigned_team: t.assigned_team,
-    affected_system: t.affected_system,
-    caller_name: t.caller_name,
-    organisation: t.organisation ?? "",
-    description: t.description.slice(0, 1000),
-    containment_actions_taken: t.containment_actions_taken.join("; ").slice(0, 500),
-    linked_incident_ref: t.linked_incident_ref ?? "",
-    agent_assist_text:
-      `${t.severity} ${t.category.replace("_", " ")} ticket ${t.ticket_ref} raised for ${t.caller_name}` +
-      `${t.organisation ? ` (${t.organisation})` : ""}. Affected system: ${t.affected_system}.` +
-      `${t.linked_incident_ref ? ` Linked to known incident ${t.linked_incident_ref}.` : ""}`,
-    ticket_ref_spoken: spokenRef(t.ticket_ref),
+    call_logged: Boolean(log),
+    ticket_ref: t?.ticket_ref ?? "",
+    severity: t?.severity ?? "",
+    category: t?.category ?? "",
+    status: t?.status ?? "",
+    assigned_team: t?.assigned_team ?? "",
+    affected_system: t?.affected_system ?? "",
+    caller_name: log?.caller_name ?? t?.caller_name ?? "",
+    organisation: log?.organisation ?? t?.organisation ?? "",
+    description: (t?.description ?? "").slice(0, 1000),
+    containment_actions_taken: (t?.containment_actions_taken ?? []).join("; ").slice(0, 500),
+    linked_incident_ref: t?.linked_incident_ref ?? "",
+    verification_status: log?.verification_status ?? "",
+    call_reason: log?.call_reason ?? "",
+    advice_given: (log?.advice_given ?? "").slice(0, 500),
+    transfer_priority: log?.transfer_priority ?? (t?.severity === "P1" ? "Urgent" : "Standard"),
+    summary: (log?.summary ?? "").slice(0, 1500),
+    notes: (log?.notes ?? "").slice(0, 500),
+    agent_assist_text: assist.slice(0, 1000),
+    ticket_ref_spoken: t ? spokenRef(t.ticket_ref) : "",
   });
 });
 

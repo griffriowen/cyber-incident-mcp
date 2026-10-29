@@ -58,6 +58,24 @@ export interface Customer {
   tier: "standard" | "priority" | "critical";
 }
 
+export type VerificationStatus = "Verified" | "Unverified" | "Failed";
+export type TransferPriority = "Urgent" | "Standard";
+
+export interface CallLog {
+  call_id: string;
+  caller_phone: string | null;
+  caller_name: string | null;
+  organisation: string | null;
+  verification_status: VerificationStatus;
+  call_reason: "new_incident" | "existing_ticket" | "failed_verification" | "other";
+  ticket_ref: string | null;
+  advice_given: string | null;
+  transfer_priority: TransferPriority;
+  summary: string;
+  notes: string | null;
+  logged_at: string;
+}
+
 export interface ToolError {
   error: true;
   code: string;

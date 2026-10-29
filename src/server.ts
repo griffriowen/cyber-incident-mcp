@@ -2,6 +2,8 @@ import "dotenv/config";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { registerTools } from "./mcp/tools.js";
 import { getTicketByCallId, spokenRef } from "./store/ticketStore.js";
 
@@ -123,6 +125,41 @@ app.post("/api/ticket/by-call", auth, (req, res) => {
       `${t.linked_incident_ref ? ` Linked to known incident ${t.linked_incident_ref}.` : ""}`,
     ticket_ref_spoken: spokenRef(t.ticket_ref),
   });
+});
+
+// Self-test: connects to this server's own PUBLIC MCP URL as an MCP client
+// (the same route the bMA uses) and runs read-only tool calls. Creates no tickets.
+app.get("/selftest/:key", async (req, res) => {
+  if (req.params.key !== API_KEY) {
+    res.status(401).json({ error: true, code: "unauthorised" });
+    return;
+  }
+  const base = process.env.RENDER_EXTERNAL_URL ?? `https://${req.get("host")}`;
+  const steps: Array<Record<string, unknown>> = [];
+  const client = new Client({ name: "selftest", version: "0.1.0" });
+  const started = Date.now();
+  try {
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp/${API_KEY}`)));
+    steps.push({ step: "connect + initialize", ok: true });
+    const { tools } = await client.listTools();
+    steps.push({ step: "tools/list", ok: true, tools: tools.map((t) => t.name) });
+    const calls: Array<[string, Record<string, unknown>]> = [
+      ["identify_caller", { caller_phone: "07590412370" }],
+      ["get_ticket_status", { ticket_ref: "SEC-240981" }],
+      ["get_ticket_status", { caller_phone: "07590412370" }],
+      ["check_known_incidents", { category: "phishing", affected_system: "email", description: "entered password on a fake microsoft sign in page" }],
+    ];
+    for (const [name, args] of calls) {
+      const r = await client.callTool({ name, arguments: args });
+      const text = (r.content as Array<{ text: string }>)[0]?.text ?? "";
+      steps.push({ step: `tools/call ${name}`, ok: !r.isError, args, result: JSON.parse(text) });
+    }
+  } catch (err) {
+    steps.push({ step: "error", ok: false, message: (err as Error).message });
+  } finally {
+    await client.close().catch(() => undefined);
+  }
+  res.json({ target: `${base}/mcp/<key>`, passed: steps.every((s) => s.ok), ms: Date.now() - started, steps });
 });
 
 app.listen(PORT, () => {

@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import type {
   CallLog,
   Customer,
@@ -9,46 +7,50 @@ import type {
   Ticket,
 } from "../types/incident.types.js";
 
-const DATA_DIR = path.resolve(process.cwd(), "data/mock");
-const TICKET_STORE_PATH = path.resolve(
-  process.cwd(),
-  process.env.TICKET_STORE_PATH ?? "data/mock/tickets.json",
-);
-
-function readJson<T>(file: string, fallback: T): T {
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8")) as T;
-  } catch {
-    return fallback;
-  }
+/**
+ * Runtime-agnostic store. The host (Node on Render, or a Cloudflare Durable
+ * Object) loads the data and supplies a callback that persists every change.
+ */
+export interface StoreData {
+  tickets: Ticket[];
+  calls: CallLog[];
+  customers: Customer[];
+  knownIncidents: KnownIncident[];
 }
 
-let tickets: Ticket[] = readJson<Ticket[]>(TICKET_STORE_PATH, []);
-const knownIncidents: KnownIncident[] = readJson<KnownIncident[]>(
-  path.join(DATA_DIR, "known_incidents.json"),
-  [],
-);
-const customers: Customer[] = readJson<Customer[]>(
-  path.join(DATA_DIR, "mock_customers.json"),
-  [],
-);
+let tickets: Ticket[] = [];
+let calls: CallLog[] = [];
+let customers: Customer[] = [];
+let knownIncidents: KnownIncident[] = [];
+let onChange: (data: StoreData) => void = () => undefined;
 
-const CALL_STORE_PATH = path.resolve(
-  process.cwd(),
-  process.env.CALL_STORE_PATH ?? "data/mock/calls.json",
-);
-let calls: CallLog[] = readJson<CallLog[]>(CALL_STORE_PATH, []);
+export function initStore(data: StoreData, persistFn?: (data: StoreData) => void): void {
+  tickets = [...data.tickets];
+  calls = [...data.calls];
+  customers = [...data.customers];
+  knownIncidents = [...data.knownIncidents];
+  if (persistFn) onChange = persistFn;
+}
+
+export function snapshot(): StoreData {
+  return { tickets, calls, customers, knownIncidents };
+}
+
+function persist(): void {
+  try {
+    onChange(snapshot());
+  } catch (err) {
+    // Persistence is best effort for a mock store; in-memory state still holds.
+    console.error("Failed to persist store:", (err as Error).message);
+  }
+}
 
 /** Saves (or replaces) the log for a call. One log per call_id. */
 export function saveCallLog(log: Omit<CallLog, "logged_at">): CallLog {
   const entry: CallLog = { ...log, logged_at: new Date().toISOString() };
   calls = calls.filter((c) => c.call_id !== log.call_id);
   calls.push(entry);
-  try {
-    fs.writeFileSync(CALL_STORE_PATH, JSON.stringify(calls, null, 2));
-  } catch (err) {
-    console.error("Failed to persist call log:", (err as Error).message);
-  }
+  persist();
   return entry;
 }
 
@@ -63,15 +65,6 @@ export function getCallLogsByPhone(phone: string, limit = 3): CallLog[] {
     .filter((c) => normalisePhone(c.caller_phone) === target)
     .sort((a, b) => b.logged_at.localeCompare(a.logged_at))
     .slice(0, limit);
-}
-
-function persist(): void {
-  try {
-    fs.writeFileSync(TICKET_STORE_PATH, JSON.stringify(tickets, null, 2));
-  } catch (err) {
-    // Persistence is best effort for a mock store; in-memory state still holds.
-    console.error("Failed to persist tickets:", (err as Error).message);
-  }
 }
 
 /** Normalise UK numbers so 07700..., +447700... and 447700... all match. */

@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
-const BASE = "http://localhost:3000";
+const BASE = process.env.BASE ?? "http://localhost:3000";
 const KEY = process.env.MCP_API_KEY!;
 const c = new Client({ name: "t", version: "1" });
 await c.connect(new StreamableHTTPClientTransport(new URL(`${BASE}/mcp/${KEY}`)));

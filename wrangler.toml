@@ -1,0 +1,19 @@
+name = "cyber-incident-mcp"
+main = "worker/index.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[[durable_objects.bindings]]
+name = "INCIDENT_STORE"
+class_name = "IncidentStore"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["IncidentStore"]
+
+# Set the API key as a secret, never here:
+#   npx wrangler secret put MCP_API_KEY
+# or in the dashboard: Worker > Settings > Variables and Secrets.

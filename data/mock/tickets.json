@@ -1,0 +1,21 @@
+[
+  {
+    "ticket_ref": "SEC-240981",
+    "call_id": null,
+    "customer_id": "CUST-1002",
+    "caller_name": "James Okafor",
+    "caller_phone": "+447700900102",
+    "organisation": "Harrow Valley Housing",
+    "category": "phishing",
+    "severity": "P3",
+    "affected_system": "email",
+    "description": "Caller clicked a link in a suspicious invoice email but did not enter credentials.",
+    "time_detected": "2026-10-28T14:05:00Z",
+    "containment_actions_taken": ["Email reported via Report Phish button"],
+    "status": "in_progress",
+    "assigned_team": "Security Operations",
+    "linked_incident_ref": null,
+    "created_at": "2026-10-28T14:12:00Z",
+    "updated_at": "2026-10-28T16:30:00Z"
+  }
+]

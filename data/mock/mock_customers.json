@@ -1,0 +1,26 @@
+[
+  {
+    "customer_id": "CUST-1001",
+    "name": "Sarah Mitchell",
+    "organisation": "Northbridge Legal LLP",
+    "phone": "+447700900101",
+    "role": "Office Manager",
+    "tier": "priority"
+  },
+  {
+    "customer_id": "CUST-1002",
+    "name": "James Okafor",
+    "organisation": "Harrow Valley Housing",
+    "phone": "+447700900102",
+    "role": "Finance Assistant",
+    "tier": "standard"
+  },
+  {
+    "customer_id": "CUST-1003",
+    "name": "Priya Shah",
+    "organisation": "Kestrel Logistics Ltd",
+    "phone": "+447700900103",
+    "role": "IT Lead",
+    "tier": "critical"
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "incident_ref": "MI-2026-0417",
+    "title": "Credential phishing campaign impersonating Microsoft 365 sign-in",
+    "category": "phishing",
+    "affected_systems": ["email", "microsoft 365", "outlook"],
+    "keywords": ["phishing", "email", "link", "password", "microsoft", "sign in", "login page", "suspicious email"],
+    "status": "identified",
+    "caller_guidance": "We are aware of a phishing campaign using a fake Microsoft 365 sign-in page. If you entered your password, we will reset it and revoke active sessions. Do not forward the email; report it using the Report Phish button.",
+    "started_at": "2026-10-29T07:40:00Z"
+  },
+  {
+    "incident_ref": "MI-2026-0418",
+    "title": "VPN authentication failures for remote users",
+    "category": "other",
+    "affected_systems": ["vpn", "remote access", "globalprotect"],
+    "keywords": ["vpn", "remote", "cannot connect", "authentication", "working from home"],
+    "status": "investigating",
+    "caller_guidance": "We are investigating VPN authentication failures affecting some remote users. This is not believed to be a security breach. Our network team expects an update within the hour.",
+    "started_at": "2026-10-29T09:15:00Z"
+  }
+]

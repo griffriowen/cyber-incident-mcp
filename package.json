@@ -1,0 +1,25 @@
+{
+  "name": "cyber-incident-mcp",
+  "version": "0.1.0",
+  "description": "Mock cyber incident ticketing MCP server for the ComXo bMA demo",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "tsx scripts/test-client.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "dotenv": "^17.0.0",
+    "express": "^5.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

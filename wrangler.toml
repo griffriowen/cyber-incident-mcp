@@ -2,6 +2,8 @@ name = "cyber-incident-mcp"
 main = "worker/index.ts"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
+# Public https://cyber-incident-mcp.<subdomain>.workers.dev address for the bMA
+workers_dev = true
 
 [observability]
 enabled = true

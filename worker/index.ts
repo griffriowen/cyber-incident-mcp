@@ -99,6 +99,11 @@ export class IncidentStore extends DurableObject<Env> {
         response = this.authorised(request, pathKey)
           ? json(await this.selftest(url.origin))
           : json({ error: true, code: "unauthorised" }, 401);
+      } else if (parts[0] === "requests" && request.method === "GET") {
+        // Last 50 requests this server received, newest first, so you can see whether the bMA called it.
+        response = this.authorised(request, pathKey)
+          ? json({ now: new Date().toISOString(), requests: (await this.ctx.storage.get<string[]>("requestLog")) ?? [] })
+          : json({ error: true, code: "unauthorised" }, 401);
       } else if (parts[0] === "reset" && request.method === "POST") {
         if (!this.authorised(request, pathKey)) {
           response = json({ error: true, code: "unauthorised" }, 401);
@@ -115,8 +120,16 @@ export class IncidentStore extends DurableObject<Env> {
       response = json({ jsonrpc: "2.0", error: { code: -32603, message: "Internal server error" }, id: null }, 500);
     }
 
-    const safePath = url.pathname.replace(/^\/(mcp|selftest|reset)\/.+/, "/$1/<key>");
-    console.log(`${request.method} ${safePath} -> ${response.status} (${Date.now() - started}ms)${detail}`);
+    const safePath = url.pathname.replace(/^\/(mcp|selftest|reset|requests)\/.+/, "/$1/<key>");
+    const line = `${request.method} ${safePath} -> ${response.status} (${Date.now() - started}ms)${detail}`;
+    console.log(line);
+    if (parts[0] !== "requests") {
+      const who = request.headers.get("user-agent")?.slice(0, 60) ?? "unknown client";
+      const ip = request.headers.get("cf-connecting-ip") ?? "";
+      const log = (await this.ctx.storage.get<string[]>("requestLog")) ?? [];
+      log.unshift(`${new Date().toISOString()} ${line} | ${who} ${ip}`);
+      await this.ctx.storage.put("requestLog", log.slice(0, 50));
+    }
     return response;
   }
 

@@ -1,0 +1,98 @@
+openapi: 3.0.3
+info:
+  title: Ironwatch Incident API
+  version: 1.0.0
+  description: >
+    Returns the ticket and call log the virtual agent (Aggie) recorded for a call,
+    so FLOW can update CKS and brief the agent. Import into storm STUDIO to create
+    the TicketByCallRequest and TicketByCallResponse object types.
+servers:
+  - url: https://cyber-incident-mcp.griffriowen.workers.dev
+paths:
+  /api/ticket/by-call:
+    post:
+      summary: Get the ticket and call log for a storm call
+      operationId: getTicketByCall
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketByCallRequest"
+      responses:
+        "200":
+          description: Ticket and call log for this call. Every field is always present; empty string when unknown.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketByCallResponse"
+        "400":
+          description: No call_id supplied
+        "401":
+          description: Missing or wrong bearer token
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    TicketByCallRequest:
+      type: object
+      required: [call_id]
+      properties:
+        call_id:
+          type: string
+          description: storm @ID for the call
+    TicketByCallResponse:
+      type: object
+      properties:
+        found:
+          type: boolean
+        call_logged:
+          type: boolean
+        ticket_ref:
+          type: string
+          example: SEC-240982
+        severity:
+          type: string
+          description: P1, P2, P3 or P4
+        category:
+          type: string
+        status:
+          type: string
+        assigned_team:
+          type: string
+        affected_system:
+          type: string
+        caller_name:
+          type: string
+        organisation:
+          type: string
+        description:
+          type: string
+        containment_actions_taken:
+          type: string
+        linked_incident_ref:
+          type: string
+        verification_status:
+          type: string
+          description: Verified, Unverified or Failed
+        call_reason:
+          type: string
+          description: new_incident, existing_ticket, failed_verification or other
+        advice_given:
+          type: string
+        transfer_priority:
+          type: string
+          description: Urgent or Standard
+        summary:
+          type: string
+        notes:
+          type: string
+        agent_assist_text:
+          type: string
+          description: One ready-made line for the agent
+        ticket_ref_spoken:
+          type: string

@@ -33,7 +33,7 @@ const created = await call("create_ticket", {
   containment_actions_taken: ["Wi-Fi turned off"],
 });
 await call("get_ticket_status", { ticket_ref: created.ticket.ticket_ref.replace("-", " ") });
-await call("get_ticket_status", { caller_phone: "+447700900102" });
+await call("get_ticket_status", { caller_phone: "+447590412370" });
 await call("get_ticket_status", {});
 
 const rest = await fetch(`${BASE}/api/ticket/by-call`, {

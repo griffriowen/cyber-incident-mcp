@@ -35,7 +35,7 @@ Every tool returns a `speak` field: a ready-made sentence the bMA can say. Ticke
 
 ## Mock data (`data/mock/`)
 
-- `mock_customers.json`: three callers on Ofcom drama numbers (07700 900101 to 900103)
+- `mock_customers.json`: three callers on Ofcom drama numbers (07700 900101 and 900103; James uses 07590 412370)
 - `known_incidents.json`: an active Microsoft 365 phishing campaign and a VPN outage
 - `tickets.json`: one existing ticket (SEC-240981) for the call-back scenario. New tickets are appended here; reset it before each demo.
 
@@ -43,7 +43,7 @@ Every tool returns a `speak` field: a ready-made sentence the bMA can say. Ticke
 
 1. **Ransomware (P1, warm transfer):** call from 07700 900103 (Priya, critical tier). Files renamed, ransom note. Ticket raised at P1, containment advice given, transferred to analyst.
 2. **Phishing (known incident):** call from 07700 900101. Clicked a link and entered a password on a Microsoft login page. bMA recognises the live campaign, links the ticket to MI-2026-0417.
-3. **Call-back:** call from 07700 900102 (James). bMA spots open ticket SEC-240981 and gives a status update.
+3. **Call-back:** call from 07590 412370 (James). bMA spots open ticket SEC-240981 and gives a status update.
 
 ## Hosting (Render example)
 

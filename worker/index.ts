@@ -156,7 +156,15 @@ export class IncidentStore extends DurableObject<Env> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === "/health") return json({ status: "ok", host: "cloudflare" });
+    if (url.pathname === "/health") {
+      // Reports whether the key secret is present, plus its length and a short hash, never the key itself.
+      const key = env.MCP_API_KEY ?? "";
+      const digest = key
+        ? [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key)))]
+            .slice(0, 4).map((b) => b.toString(16).padStart(2, "0")).join("")
+        : "";
+      return json({ status: "ok", host: "cloudflare", key_configured: Boolean(key), key_length: key.length, key_sha256_prefix: digest });
+    }
     const stub = env.INCIDENT_STORE.get(env.INCIDENT_STORE.idFromName("main"));
     return stub.fetch(request);
   },

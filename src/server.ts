@@ -139,6 +139,8 @@ app.get("/selftest/:key", async (req, res) => {
   res.json({ target: `${base}/mcp/<key>`, passed: steps.every((s) => s.ok), ms: Date.now() - started, steps });
 });
 
-app.listen(PORT, () => {
-  console.log(`cyber-incident-mcp listening on http://localhost:${PORT} (MCP at /mcp)`);
+// HOST=127.0.0.1 on a VPS keeps the app private behind Caddy; Render needs the default (all interfaces).
+const HOST = process.env.HOST ?? "0.0.0.0";
+app.listen(PORT, HOST, () => {
+  console.log(`cyber-incident-mcp listening on http://${HOST}:${PORT} (MCP at /mcp)`);
 });

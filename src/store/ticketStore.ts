@@ -52,6 +52,10 @@ export function listCalls(): CallLog[] {
   return [...calls];
 }
 
+export function listKnownIncidents(): KnownIncident[] {
+  return [...knownIncidents];
+}
+
 /** Handler update from the board: change status and/or add a note. Returns null if the ticket doesn't exist. */
 export function updateTicket(
   ref: string,

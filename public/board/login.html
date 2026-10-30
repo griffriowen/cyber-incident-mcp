@@ -4,28 +4,60 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>Ironwatch incident board</title>
+  <title>Ironwatch incident desk</title>
+  <link rel="icon" href="/board/assets/logo.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Saira+Stencil+One&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/board/assets/board.css">
 </head>
-<body>
-  <main class="login">
-    <form method="post" action="/board/login">
-      <h1>Ironwatch incident board</h1>
-      <p>Enter the board password to see live tickets and calls.</p>
-      <p class="err" id="err" role="alert" hidden></p>
-      <label for="password">Password</label>
-      <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
-      <button class="save" type="submit">Sign in</button>
+<body class="login-page">
+  <div class="login">
+    <section class="login-brand" aria-hidden="true">
+      <svg class="mark mark-xl" viewBox="0 0 64 64"><use href="#mark"/></svg>
+      <p class="wordmark wordmark-xl">Ironwatch</p>
+      <p class="login-tag">Incident response desk</p>
+      <p class="login-small">Every call Aggie takes lands here: verified, triaged and ticketed before a handler picks it up.</p>
+    </section>
+
+    <form class="login-form" method="post" action="/board/login">
+      <h1>Sign in to the desk</h1>
+      <p class="muted">For Ironwatch incident handlers. Sign-ins and ticket changes are recorded.</p>
+      <p class="form-error" id="err" role="alert" hidden></p>
+      <p class="form-ok" id="ok" role="status" hidden></p>
+
+      <label for="name">Your name</label>
+      <input id="name" name="name" type="text" autocomplete="name" maxlength="40" placeholder="Shown on notes you add">
+
+      <label for="password">Desk password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+      <button class="btn btn-primary btn-wide" type="submit">Sign in</button>
     </form>
-  </main>
+  </div>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="mark" viewBox="0 0 64 64">
+      <rect x="4" y="4" width="56" height="56" rx="10" fill="#1A2B45"/>
+      <rect x="7" y="7" width="50" height="50" rx="8" fill="none" stroke="#3B5478" stroke-width="2"/>
+      <circle cx="14" cy="14" r="2.6" fill="#7F93AE"/><circle cx="50" cy="14" r="2.6" fill="#7F93AE"/>
+      <circle cx="14" cy="50" r="2.6" fill="#7F93AE"/><circle cx="50" cy="50" r="2.6" fill="#7F93AE"/>
+      <rect x="13" y="27" width="38" height="10" rx="5" fill="#0C1626"/>
+      <circle class="eye" cx="32" cy="32" r="3.6" fill="#E2B43C"/>
+    </symbol>
+  </svg>
+
   <script>
-    var e = new URLSearchParams(location.search).get("error");
-    var box = document.getElementById("err");
-    if (e === "wrong") { box.textContent = "That password isn't right. Try again."; box.hidden = false; }
-    if (e === "locked") { box.textContent = "Too many attempts. Wait 10 minutes, then try again."; box.hidden = false; }
+    var q = new URLSearchParams(location.search);
+    var err = document.getElementById("err"), ok = document.getElementById("ok");
+    if (q.get("error") === "wrong") { err.textContent = "That password isn't right. Check it and try again."; err.hidden = false; }
+    if (q.get("error") === "locked") { err.textContent = "Too many attempts from this connection. Wait 10 minutes, then try again."; err.hidden = false; }
+    if (q.get("signed_out")) { ok.textContent = "You've signed out."; ok.hidden = false; }
+    try { var n = localStorage.getItem("iw_name"); if (n) document.getElementById("name").value = n; } catch (e) {}
+    document.querySelector("form").addEventListener("submit", function () {
+      try { localStorage.setItem("iw_name", document.getElementById("name").value.trim()); } catch (e) {}
+    });
+    (document.getElementById("name").value ? document.getElementById("password") : document.getElementById("name")).focus();
   </script>
 </body>
 </html>

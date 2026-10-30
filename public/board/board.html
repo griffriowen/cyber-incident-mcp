@@ -4,46 +4,87 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>Ironwatch incident board</title>
+  <title>Ironwatch incident desk</title>
+  <link rel="icon" href="/board/assets/logo.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Saira+Stencil+One&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/board/assets/board.css">
 </head>
 <body>
-  <header class="bar">
-    <h1 class="wordmark">Ironwatch<span>Incident board</span></h1>
-    <p class="live" id="live" aria-live="polite">Connecting</p>
-    <nav class="tabs" role="tablist" aria-label="Board views">
-      <button class="tab" role="tab" id="tab-tickets" aria-selected="true" aria-controls="view-tickets">Tickets</button>
-      <button class="tab" role="tab" id="tab-calls" aria-selected="false" aria-controls="view-calls">Calls</button>
-    </nav>
-    <form method="post" action="/board/logout"><button class="signout" type="submit">Sign out</button></form>
-  </header>
+  <a class="skip" href="#view">Skip to content</a>
+  <div class="app">
+    <aside class="side">
+      <a class="brand" href="#/overview" aria-label="Ironwatch, overview">
+        <svg class="mark" id="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="4" y="4" width="56" height="56" rx="10" fill="#1A2B45"/>
+          <rect x="7" y="7" width="50" height="50" rx="8" fill="none" stroke="#3B5478" stroke-width="2"/>
+          <circle cx="14" cy="14" r="2.6" fill="#7F93AE"/><circle cx="50" cy="14" r="2.6" fill="#7F93AE"/>
+          <circle cx="14" cy="50" r="2.6" fill="#7F93AE"/><circle cx="50" cy="50" r="2.6" fill="#7F93AE"/>
+          <rect x="13" y="27" width="38" height="10" rx="5" fill="#0C1626"/>
+          <circle class="eye" cx="32" cy="32" r="3.6" fill="#E2B43C"/>
+        </svg>
+        <span>
+          <span class="wordmark">Ironwatch</span>
+          <span class="brand-sub">Incident desk</span>
+        </span>
+      </a>
 
-  <main>
-    <section class="rail" id="rail" aria-label="Open tickets by priority"></section>
+      <nav class="nav" aria-label="Desk">
+        <a href="#/overview" data-nav="overview">
+          <svg class="ico" aria-hidden="true"><use href="#i-gauge"/></svg><span>Overview</span><b class="count" id="n-waiting"></b>
+        </a>
+        <a href="#/tickets" data-nav="tickets">
+          <svg class="ico" aria-hidden="true"><use href="#i-ticket"/></svg><span>Tickets</span><b class="count" id="n-open"></b>
+        </a>
+        <a href="#/calls" data-nav="calls">
+          <svg class="ico" aria-hidden="true"><use href="#i-phone"/></svg><span>Calls</span><b class="count" id="n-calls"></b>
+        </a>
+        <a href="#/incidents" data-nav="incidents">
+          <svg class="ico" aria-hidden="true"><use href="#i-radar"/></svg><span>Known incidents</span><b class="count" id="n-incidents"></b>
+        </a>
+      </nav>
 
-    <section id="view-tickets" role="tabpanel" aria-labelledby="tab-tickets">
-      <div class="view-head">
-        <h2>Tickets</h2>
-        <label class="filter">Show
-          <select id="filter">
-            <option value="open">Open tickets</option>
-            <option value="all">All tickets</option>
-          </select>
-        </label>
+      <div class="side-foot">
+        <p class="who"><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg><span id="who">Signing in</span></p>
+        <p class="session"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg><span id="session">Secure session</span></p>
+        <form method="post" action="/board/logout"><button class="btn btn-ghost-dark" type="submit">Sign out</button></form>
       </div>
-      <ul class="strips" id="strips"></ul>
-    </section>
+    </aside>
 
-    <section id="view-calls" role="tabpanel" aria-labelledby="tab-calls" hidden>
-      <div class="view-head"><h2>Calls handled by Aggie</h2></div>
-      <div id="calls"></div>
-    </section>
-  </main>
+    <div class="main">
+      <header class="topbar">
+        <h1 class="page-title" id="page-title">Overview</h1>
+        <p class="live" id="live" aria-live="polite"><span class="live-dot" aria-hidden="true"></span><span id="live-text">Connecting</span></p>
+      </header>
+      <main id="view" tabindex="-1"></main>
+    </div>
+  </div>
 
-  <div id="drawer-root"></div>
+  <div class="toasts" id="toasts" aria-live="assertive"></div>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="mark" viewBox="0 0 64 64">
+      <rect x="4" y="4" width="56" height="56" rx="10" fill="#1A2B45"/>
+      <rect x="7" y="7" width="50" height="50" rx="8" fill="none" stroke="#3B5478" stroke-width="2"/>
+      <circle cx="14" cy="14" r="2.6" fill="#7F93AE"/><circle cx="50" cy="14" r="2.6" fill="#7F93AE"/>
+      <circle cx="14" cy="50" r="2.6" fill="#7F93AE"/><circle cx="50" cy="50" r="2.6" fill="#7F93AE"/>
+      <rect x="13" y="27" width="38" height="10" rx="5" fill="#0C1626"/>
+      <circle class="eye" cx="32" cy="32" r="3.6" fill="#E2B43C"/>
+    </symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 16l4-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 7v10" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6 3h3l2 5-2 1.5a11 11 0 0 0 5.5 5.5L16 13l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-radar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 12l6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21a8 8 0 0 1 16 0" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-shield-ok" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-shield-q" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 8v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.2" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-shield-x" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9.5 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  </svg>
+
   <script src="/board/assets/board.js"></script>
 </body>
 </html>

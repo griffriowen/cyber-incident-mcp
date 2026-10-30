@@ -118,7 +118,8 @@ app.get("/selftest/:key", async (req, res) => {
     res.status(401).json({ error: true, code: "unauthorised" });
     return;
   }
-  const base = process.env.RENDER_EXTERNAL_URL ?? `https://${req.get("host")}`;
+  // Behind Caddy, trust proxy makes req.protocol "https"; locally it is plain "http".
+  const base = process.env.RENDER_EXTERNAL_URL ?? `${req.protocol}://${req.get("host")}`;
   const steps: Array<Record<string, unknown>> = [];
   const client = new Client({ name: "selftest", version: "0.1.0" });
   const started = Date.now();

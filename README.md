@@ -66,6 +66,13 @@ The same tools run as a Worker (`worker/index.ts`, config in `wrangler.toml`). S
 
 Extra endpoint on Cloudflare: `POST /reset/<MCP_API_KEY>` puts tickets and call logs back to the seed data before a demo.
 
+## Checking everything works
+
+```bash
+npx tsx scripts/full-check.mts https://mcp.griffriowen.co.uk <MCP_API_KEY>          # read-only, safe on a live server
+npx tsx scripts/full-check.mts https://mcp.griffriowen.co.uk <MCP_API_KEY> --write  # full suite; reset demo data afterwards
+```
+
 ## Before going live
 
 - Serve over HTTPS with a CA-signed certificate (required for FLOW's REST API action cell; assume the bMA needs the same).

@@ -3,3 +3,5 @@ dist
 .env
 .dev.vars
 .wrangler
+data/mock/auto_incidents.json
+data/mock/calls.json

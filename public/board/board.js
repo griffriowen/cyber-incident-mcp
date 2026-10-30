@@ -18,6 +18,7 @@
 
   var state = null;
   var known = null; // ticket refs already seen, so only genuinely new ones raise an alert
+  var knownIncidents = null; // same for incidents
   var lastOk = 0;
   var filters = { q: "", sev: { P1: false, P2: false, P3: false, P4: false }, status: "open" };
   var callFilter = "all";
@@ -115,10 +116,13 @@
         var fresh = [];
         if (known) data.tickets.forEach(function (t) { if (!known.has(t.ticket_ref)) fresh.push(t); });
         known = new Set(data.tickets.map(function (t) { return t.ticket_ref; }));
+        var freshIncidents = knownIncidents ? data.incidents.filter(function (i) { return !knownIncidents.has(i.incident_ref); }) : [];
+        knownIncidents = new Set(data.incidents.map(function (i) { return i.incident_ref; }));
         state = data;
         renderChrome();
         if (changed) route(false, fresh.map(function (t) { return t.ticket_ref; }));
         fresh.forEach(toast);
+        freshIncidents.forEach(incidentToast);
       })
       .catch(function () {})
       .finally(function () {
@@ -162,13 +166,35 @@
 
   // ---------- alerts ----------
   function toast(t) {
-    var box = el("div", { class: "toast", dataset: { sev: t.severity }, role: "status" }, [
+    var box = el("div", { class: "toast", dataset: { sev: t.severity, ref: t.ticket_ref }, role: "status" }, [
       sevBadge(t.severity),
       el("p", null, [el("b", { text: "New ticket from Aggie" }), t.ticket_ref + ": " + title(t) + ", " + t.caller_name]),
       el("a", { class: "btn", href: "#/tickets/" + encodeURIComponent(t.ticket_ref), text: "Open", onclick: function () { box.remove(); } }),
     ]);
-    $("toasts").append(box);
-    setTimeout(function () { box.remove(); }, 15000);
+    addToast(box, 15000);
+    var app = document.querySelector(".app");
+    app.classList.remove("alert"); void app.offsetWidth; app.classList.add("alert");
+    setTimeout(function () { app.classList.remove("alert"); }, 3000);
+  }
+
+  function addToast(box, ms) {
+    var shelf = $("toasts");
+    shelf.append(box);
+    while (shelf.children.length > 3) shelf.firstElementChild.remove();
+    setTimeout(function () { box.remove(); }, ms);
+  }
+
+  function incidentToast(i) {
+    var box = el("div", { class: "toast toast-outbreak", role: "status" }, [
+      el("span", { class: "pri outbreak-badge", text: "!" }),
+      el("p", null, [el("b", { text: "Pattern detected" }), i.title + ". New callers will be told Ironwatch is already on it."]),
+      el("a", { class: "btn", href: "#/incidents", text: "View", onclick: function () { box.remove(); } }),
+    ]);
+    (i.linked_tickets || []).forEach(function (r) {
+      var old = document.querySelector('.toast[data-ref="' + r + '"]');
+      if (old) old.remove();
+    });
+    addToast(box, 20000);
     var app = document.querySelector(".app");
     app.classList.remove("alert"); void app.offsetWidth; app.classList.add("alert");
     setTimeout(function () { app.classList.remove("alert"); }, 3000);
@@ -216,7 +242,8 @@
     var verdict, sub;
     if (waiting.length) {
       verdict = waiting.length === 1 ? "1 incident is waiting for a handler" : waiting.length + " incidents are waiting for a handler";
-      sub = "The longest has waited " + dur(Date.now() - new Date(waiting.slice().sort(function (a, b) { return a.created_at.localeCompare(b.created_at); })[0].created_at).getTime()) + ". Highest priority first below.";
+      var oldest = Date.now() - new Date(waiting.slice().sort(function (a, b) { return a.created_at.localeCompare(b.created_at); })[0].created_at).getTime();
+      sub = (oldest < 60000 ? "Just raised." : "The longest has waited " + dur(oldest) + ".") + " Highest priority first below.";
     } else if (open.length) {
       verdict = "Every open incident has a handler";
       sub = open.length + " open ticket" + (open.length === 1 ? " is" : "s are") + " being worked on.";
@@ -254,10 +281,10 @@
     var feed = state.activity.length
       ? el("ol", { class: "feed" }, state.activity.slice(0, 12).map(function (e) {
           var link = e.ticket_ref ? el("a", { href: "#/tickets/" + encodeURIComponent(e.ticket_ref), class: "ref", text: e.ticket_ref }) : null;
-          var verb = e.kind === "raised" ? "Raised by Aggie: " : e.kind === "status" ? "" : e.kind === "note" ? "Note: " : "";
+          var verb = e.kind === "raised" ? "Raised by Aggie: " : e.kind === "note" ? "Note: " : "";
           return el("li", { class: "kind-" + e.kind }, [
             el("time", { datetime: e.at, text: when(e.at) }),
-            el("span", null, [link, link ? " " : "", verb + e.text, el("span", { class: "by", text: e.kind === "raised" ? "" : " (" + e.by + ")" })]),
+            el("span", null, [link, link ? " " : "", e.kind === "outbreak" ? el("b", { text: e.text }) : verb + e.text, el("span", { class: "by", text: e.kind === "raised" || e.kind === "outbreak" ? "" : " (" + e.by + ")" })]),
           ]);
         }))
       : el("p", { class: "empty", text: "No activity yet." });
@@ -475,22 +502,46 @@
   }
 
   // ---------- known incidents ----------
+  function setIncidentStatus(ref, status, btn, msg) {
+    btn.disabled = true; msg.className = "msg"; msg.textContent = "Saving";
+    api("/board/api/incidents/" + encodeURIComponent(ref), {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Board-Request": "1" }, body: JSON.stringify({ status: status }),
+    }).then(function () { msg.textContent = "Saved"; poll(); })
+      .catch(function (e) { msg.className = "msg err"; msg.textContent = e.message; btn.disabled = false; });
+  }
+
   function renderIncidents() {
+    var list = state.incidents.slice().sort(function (a, b) {
+      var ar = a.status === "resolved", br = b.status === "resolved";
+      if (ar !== br) return ar ? 1 : -1;
+      return b.started_at.localeCompare(a.started_at);
+    });
+    var auto = state.incidents.filter(function (i) { return i.auto_detected && i.status !== "resolved"; }).length;
     mount("incidents", [
-      el("p", { class: "verdict-sub", text: "Incidents Ironwatch is already handling. When a caller's problem matches one, Aggie reassures them with the guidance below and links their ticket." }),
-      el("div", { class: "incidents" }, state.incidents.map(function (i) {
-        return el("section", { class: "panel incident" }, [
+      el("p", { class: "verdict-sub", text: "Incidents Ironwatch is already handling. When a caller's problem matches one, Aggie tells them it's known and links their ticket. "
+        + "The desk also opens one automatically when three similar reports arrive within an hour." + (auto ? (auto === 1 ? " 1 open incident was" : " " + auto + " open incidents were") + " detected automatically." : "") }),
+      el("div", { class: "incidents" }, list.map(function (i) {
+        var msg = el("span", { class: "msg", role: "status" });
+        var resolved = i.status === "resolved";
+        var btn = el("button", { class: "btn" + (resolved ? "" : " btn-primary"), type: "button", text: resolved ? "Reopen" : "Mark resolved",
+          onclick: function () { setIncidentStatus(i.incident_ref, resolved ? "investigating" : "resolved", btn, msg); } });
+        return el("section", { class: "panel incident" + (i.auto_detected ? " auto" : "") + (resolved ? " is-resolved" : "") }, [
           el("div", { class: "panel-head" }, [
-            el("div", null, [el("span", { class: "ref muted", text: i.incident_ref }), el("h3", { text: i.title })]),
-            el("span", { class: "state", dataset: { status: i.status === "resolved" ? "resolved" : "in_progress" }, text: INCIDENT_STATUS[i.status] || i.status }),
+            el("div", null, [
+              el("span", { class: "ref muted", text: i.incident_ref }),
+              i.auto_detected ? el("span", { class: "auto-flag", text: "Auto-detected" }) : null,
+              el("h3", { text: i.title }),
+            ]),
+            el("span", { class: "state", dataset: { status: resolved ? "resolved" : "in_progress" }, text: INCIDENT_STATUS[i.status] || i.status }),
           ]),
           el("div", { class: "panel-body" }, [
-            el("p", { class: "muted", text: "Started " + when(i.started_at) }),
-            el("div", { class: "tags" }, i.affected_systems.map(function (s) { return el("span", { class: "tag", text: s }); })),
+            el("p", { class: "muted", text: (i.auto_detected ? "Detected " : "Started ") + when(i.started_at) + (resolved && i.resolved_at ? ", resolved " + when(i.resolved_at) : "") }),
+            el("div", { class: "tags" }, i.affected_systems.map(function (x) { return el("span", { class: "tag", text: x }); })),
             el("p", { class: "callout" }, [el("b", { text: "What Aggie tells callers" }), i.caller_guidance]),
             el("p", null, i.linked_tickets.length
-              ? ["Linked tickets: "].concat(i.linked_tickets.map(function (r, n) { return el("span", null, [n ? ", " : "", el("a", { class: "linkish ref", href: "#/tickets/" + encodeURIComponent(r), text: r })]); }))
+              ? [i.linked_tickets.length + " linked ticket" + (i.linked_tickets.length === 1 ? "" : "s") + ": "].concat(i.linked_tickets.map(function (r, n) { return el("span", null, [n ? ", " : "", el("a", { class: "linkish ref", href: "#/tickets/" + encodeURIComponent(r), text: r })]); }))
               : [el("span", { class: "muted", text: "No tickets linked yet." })]),
+            el("div", { class: "actions" }, [btn, msg]),
           ]),
         ]);
       })),

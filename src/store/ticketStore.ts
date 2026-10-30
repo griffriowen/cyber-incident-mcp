@@ -33,6 +33,18 @@ export function initStore(data: StoreData, persistFn?: (data: StoreData) => void
   if (persistFn) onChange = persistFn;
 }
 
+/** Seed incidents first; any saved copy with the same reference (e.g. auto-detected or resolved) replaces it. */
+export function mergeIncidents(seed: KnownIncident[], saved: KnownIncident[]): KnownIncident[] {
+  const byRef = new Map(seed.map((i) => [i.incident_ref, i] as const));
+  for (const i of saved) byRef.set(i.incident_ref, i);
+  return Array.from(byRef.values());
+}
+
+/** Incidents worth saving: auto-detected ones and any whose status changed on the desk. */
+export function incidentsToSave(all: KnownIncident[]): KnownIncident[] {
+  return all.filter((i) => i.auto_detected || i.status === "resolved");
+}
+
 export function snapshot(): StoreData {
   return { tickets, calls, customers, knownIncidents };
 }
@@ -229,6 +241,120 @@ export function getTicketByCallId(callId: string): Ticket | null {
   return tickets.find((t) => t.call_id === callId) ?? null;
 }
 
+// ---------- Outbreak detection ----------
+// When CLUSTER_THRESHOLD tickets with the same category on a similar system arrive within
+// CLUSTER_WINDOW_MIN minutes (from anyone, including the same caller ringing repeatedly),
+// the server opens a known incident itself. Later callers are then told it's already known.
+
+const CLUSTER_THRESHOLD = Number(globalThis.process?.env?.CLUSTER_THRESHOLD ?? 3);
+const CLUSTER_WINDOW_MIN = Number(globalThis.process?.env?.CLUSTER_WINDOW_MIN ?? 60);
+
+const STOPWORDS = new Set(["the", "a", "an", "my", "our", "their", "his", "her", "its", "work", "works", "company", "system", "systems", "account", "accounts", "on", "of", "and", "for", "to", "in", "at", "all", "main", "shared", "office", "staff"]);
+const SYNONYMS: Record<string, string> = {
+  outlook: "email", mail: "email", inbox: "email", emails: "email", m365: "email", "365": "email", exchange: "email",
+  salesforce: "crm", dynamics: "crm", hubspot: "crm",
+  pc: "device", laptop: "device", laptops: "device", computer: "device", desktop: "device", workstation: "device", macbook: "device",
+  "file": "files", share: "files", sharepoint: "files", drive: "files", onedrive: "files",
+  website: "web", site: "web", portal: "web",
+  remote: "vpn", globalprotect: "vpn",
+  phone: "mobile", iphone: "mobile", android: "mobile",
+};
+
+/** Normalised words that describe a system, e.g. "Finance laptop" -> ["finance", "device"]. */
+export function systemTokens(system: string | null | undefined): string[] {
+  return Array.from(new Set(
+    (system ?? "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w && !STOPWORDS.has(w)).map((w) => SYNONYMS[w] ?? w),
+  ));
+}
+
+function systemsOverlap(a: string, b: string): boolean {
+  const tb = new Set(systemTokens(b));
+  return systemTokens(a).some((w) => tb.has(w));
+}
+
+const CATEGORY_LABEL: Record<IncidentCategory, string> = {
+  ransomware: "ransomware", phishing: "phishing", account_compromise: "account compromise", malware: "malware",
+  data_breach: "data exposure", ddos: "service outage", lost_device: "lost device", other: "security",
+};
+
+function nextIncidentRef(): string {
+  const year = new Date().getFullYear();
+  const max = knownIncidents.reduce((acc, i) => {
+    const m = /^MI-\d{4}-(\d+)$/.exec(i.incident_ref);
+    return m ? Math.max(acc, Number(m[1])) : acc;
+  }, 400);
+  return `MI-${year}-${String(max + 1).padStart(4, "0")}`;
+}
+
+/** Unresolved auto-detected incident covering this ticket's issue, if any. */
+function matchingAutoIncident(t: Ticket): KnownIncident | null {
+  return knownIncidents.find((i) =>
+    i.auto_detected && i.status !== "resolved" && i.category === t.category &&
+    i.affected_systems.some((s) => systemsOverlap(s, t.affected_system)),
+  ) ?? null;
+}
+
+/**
+ * Called after every new ticket. Links it to a matching auto-detected incident, or opens a
+ * new one if this ticket is the CLUSTER_THRESHOLD-th similar report inside the window.
+ */
+export function detectOutbreak(t: Ticket): { incident: KnownIncident; created: boolean; reports: number } | null {
+  const existing = matchingAutoIncident(t);
+  if (existing) {
+    existing.source_tickets = Array.from(new Set([...(existing.source_tickets ?? []), t.ticket_ref]));
+    if (!t.linked_incident_ref) t.linked_incident_ref = existing.incident_ref;
+    persist();
+    return { incident: existing, created: false, reports: existing.source_tickets.length };
+  }
+  if (t.linked_incident_ref) return null; // already explained by a known incident
+
+  const since = Date.now() - CLUSTER_WINDOW_MIN * 60_000;
+  const similar = tickets.filter((x) =>
+    x.category === t.category &&
+    !x.linked_incident_ref &&
+    new Date(x.created_at).getTime() >= since &&
+    systemsOverlap(x.affected_system, t.affected_system),
+  );
+  if (similar.length < CLUSTER_THRESHOLD) return null;
+
+  const shared = systemTokens(t.affected_system).filter((w) => similar.every((x) => systemTokens(x.affected_system).includes(w)));
+  const systems = Array.from(new Set(similar.map((x) => x.affected_system.toLowerCase())));
+  const label = CATEGORY_LABEL[t.category];
+  const orgs = Array.from(new Set(similar.map((x) => x.organisation).filter(Boolean)));
+  // Name the system the way callers did: the shortest description that contains the shared word (e.g. "CRM").
+  const originals = similar.map((x) => x.affected_system.trim()).sort((a, b) => a.length - b.length);
+  const what = originals.find((o) => shared.length && systemTokens(o).includes(shared[0])) ?? originals[0];
+  const incident: KnownIncident = {
+    incident_ref: nextIncidentRef(),
+    title: `Multiple ${label} reports affecting ${what}`,
+    category: t.category,
+    affected_systems: Array.from(new Set([...systems, ...shared])),
+    keywords: Array.from(new Set(similar.flatMap((x) => systemTokens(x.affected_system)))),
+    status: "investigating",
+    caller_guidance:
+      `We're aware of several similar reports of ${label} involving ${what}, and our security team is already investigating. ` +
+      `${CALLER_ADVICE[t.category]}`,
+    started_at: new Date().toISOString(),
+    auto_detected: true,
+    source_tickets: similar.map((x) => x.ticket_ref),
+  };
+  knownIncidents.push(incident);
+  for (const x of similar) x.linked_incident_ref = incident.incident_ref;
+  persist();
+  console.log(`Outbreak detected: ${incident.incident_ref} from ${similar.length} reports (${orgs.join(", ") || "unknown organisations"})`);
+  return { incident, created: true, reports: similar.length };
+}
+
+/** Desk action: change a known incident's status (e.g. resolve an auto-detected outbreak). */
+export function updateKnownIncident(ref: string, status: KnownIncident["status"]): KnownIncident | null {
+  const i = knownIncidents.find((x) => x.incident_ref === ref.toUpperCase());
+  if (!i) return null;
+  i.status = status;
+  if (status === "resolved") i.resolved_at = new Date().toISOString();
+  persist();
+  return i;
+}
+
 export function matchKnownIncidents(params: {
   category?: IncidentCategory | null;
   affected_system?: string | null;
@@ -239,9 +365,12 @@ export function matchKnownIncidents(params: {
     .filter((i) => i.status !== "resolved")
     .map((i) => {
       let score = 0;
+      let systemHit = false;
       if (params.category && i.category === params.category) score += 2;
-      for (const s of i.affected_systems) if (haystack.includes(s)) score += 2;
-      for (const k of i.keywords) if (haystack.includes(k)) score += 1;
+      for (const s of i.affected_systems) if (haystack.includes(s)) { score += 2; systemHit = true; }
+      for (const k of i.keywords) if (haystack.includes(k)) { score += 1; systemHit = true; }
+      // Auto-detected incidents must also match on the system, not just the category.
+      if (i.auto_detected && !systemHit && !systemsOverlap(i.affected_systems.join(" "), params.affected_system ?? "")) score = 0;
       return { i, score };
     })
     .filter((x) => x.score >= 2)

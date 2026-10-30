@@ -232,6 +232,11 @@ a { color: inherit; }
 .incident h3 { font-size: 17px; }
 .incident .tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
 .tag { background: var(--line-soft); border-radius: 4px; padding: 2px 8px; font-size: 13px; }
+.incident.auto { border-top: 4px solid var(--straw); }
+.incident.is-resolved { opacity: 0.7; }
+.auto-flag { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 700; color: #6f5310; background: #fbf0cf; border-radius: 3px; padding: 1px 7px; vertical-align: 1px; }
+.toast-outbreak { border-left-color: var(--straw); }
+.outbreak-badge { background: var(--straw); color: var(--ink); min-width: 30px; }
 
 /* ---------- Toasts ---------- */
 .toasts { position: fixed; right: 20px; bottom: 20px; display: grid; gap: 10px; z-index: 20; width: min(380px, calc(100vw - 40px)); }

@@ -56,6 +56,11 @@ export interface KnownIncident {
   status: "investigating" | "identified" | "monitoring" | "resolved";
   caller_guidance: string;
   started_at: string;
+  /** Set when the server created this incident itself after spotting repeated similar reports. */
+  auto_detected?: boolean;
+  /** Tickets that triggered or were later linked to this incident. */
+  source_tickets?: string[];
+  resolved_at?: string;
 }
 
 export interface Customer {

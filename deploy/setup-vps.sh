@@ -65,6 +65,7 @@ rsync -a --delete --exclude node_modules --exclude dist --exclude .env --exclude
 # Seed the ticket and call stores once; later deploys never overwrite them.
 [[ -f "$DATA_DIR/tickets.json" ]] || cp "$APP_DIR/data/mock/tickets.json" "$DATA_DIR/tickets.json"
 [[ -f "$DATA_DIR/calls.json" ]] || echo "[]" > "$DATA_DIR/calls.json"
+[[ -f "$DATA_DIR/incidents.json" ]] || echo "[]" > "$DATA_DIR/incidents.json"
 
 cat > "$APP_DIR/.env" <<EOF
 PORT=3000
@@ -73,6 +74,9 @@ MCP_API_KEY=$API_KEY
 BOARD_PASSWORD=$BOARD_PASSWORD
 TICKET_STORE_PATH=$DATA_DIR/tickets.json
 CALL_STORE_PATH=$DATA_DIR/calls.json
+INCIDENT_STORE_PATH=$DATA_DIR/incidents.json
+CLUSTER_THRESHOLD=3
+CLUSTER_WINDOW_MIN=60
 EOF
 chmod 600 "$APP_DIR/.env"
 

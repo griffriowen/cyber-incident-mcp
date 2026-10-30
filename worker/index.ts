@@ -17,7 +17,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { registerTools } from "../src/mcp/tools.js";
-import { initStore, type StoreData } from "../src/store/ticketStore.js";
+import { incidentsToSave, initStore, mergeIncidents, type StoreData } from "../src/store/ticketStore.js";
 import { buildByCallResponse } from "../src/http/byCall.js";
 import seedTickets from "../data/mock/tickets.json";
 import seedCustomers from "../data/mock/mock_customers.json";
@@ -44,12 +44,12 @@ export class IncidentStore extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
-      const saved = await ctx.storage.get<Pick<StoreData, "tickets" | "calls">>("state");
+      const saved = await ctx.storage.get<Pick<StoreData, "tickets" | "calls"> & { incidents?: StoreData["knownIncidents"] }>("state");
       const base = seed();
       initStore(
         // Customers and known incidents always come from the repo, so edits deploy straight through.
-        { ...base, tickets: saved?.tickets ?? base.tickets, calls: saved?.calls ?? [] },
-        (d) => void ctx.storage.put("state", { tickets: d.tickets, calls: d.calls }),
+        { ...base, tickets: saved?.tickets ?? base.tickets, calls: saved?.calls ?? [], knownIncidents: mergeIncidents(base.knownIncidents, saved?.incidents ?? []) },
+        (d) => void ctx.storage.put("state", { tickets: d.tickets, calls: d.calls, incidents: incidentsToSave(d.knownIncidents) }),
       );
     });
   }
@@ -109,7 +109,7 @@ export class IncidentStore extends DurableObject<Env> {
           response = json({ error: true, code: "unauthorised" }, 401);
         } else {
           await this.ctx.storage.delete("state");
-          initStore(seed(), (d) => void this.ctx.storage.put("state", { tickets: d.tickets, calls: d.calls }));
+          initStore(seed(), (d) => void this.ctx.storage.put("state", { tickets: d.tickets, calls: d.calls, incidents: incidentsToSave(d.knownIncidents) }));
           response = json({ reset: true });
         }
       } else {

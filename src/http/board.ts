@@ -7,6 +7,7 @@ import {
   listKnownIncidents,
   listTickets,
   storeVersion,
+  updateKnownIncident,
   updateTicket,
 } from "../store/ticketStore.js";
 import type { Ticket, TicketStatus } from "../types/incident.types.js";
@@ -134,13 +135,18 @@ function ticketSummary(t: Ticket) {
 
 /** Most recent events across tickets, notes and calls, newest first. */
 function activity(limit = 20) {
-  type Event = { at: string; kind: "raised" | "status" | "note" | "call"; ticket_ref: string | null; severity: string | null; text: string; by: string };
+  type Event = { at: string; kind: "raised" | "status" | "note" | "call" | "outbreak"; ticket_ref: string | null; severity: string | null; text: string; by: string };
   const events: Event[] = [];
   for (const t of listTickets()) {
     events.push({ at: t.created_at, kind: "raised", ticket_ref: t.ticket_ref, severity: t.severity, by: "Aggie", text: `${t.caller_name}${t.organisation ? ` at ${t.organisation}` : ""} reported ${t.category.replace("_", " ")} on ${t.affected_system}` });
     for (const n of t.notes ?? []) {
       events.push({ at: n.at, kind: n.kind === "status" ? "status" : "note", ticket_ref: t.ticket_ref, severity: t.severity, by: n.author, text: n.text });
     }
+  }
+  for (const i of listKnownIncidents()) {
+    if (!i.auto_detected) continue;
+    events.push({ at: i.started_at, kind: "outbreak", ticket_ref: null, severity: null, by: "Ironwatch", text: `Pattern detected: ${i.title} (${i.incident_ref}), from ${i.source_tickets?.length ?? 0} similar reports` });
+    if (i.resolved_at) events.push({ at: i.resolved_at, kind: "status", ticket_ref: null, severity: null, by: "Desk", text: `${i.incident_ref} marked resolved` });
   }
   for (const c of listCalls()) {
     if (c.call_reason === "new_incident" && c.ticket_ref) continue; // already shown as "raised"
@@ -225,6 +231,8 @@ export function boardRouter(): Router {
       affected_systems: i.affected_systems,
       caller_guidance: i.caller_guidance,
       started_at: i.started_at,
+      auto_detected: Boolean(i.auto_detected),
+      resolved_at: i.resolved_at ?? null,
       linked_tickets: listTickets().filter((t) => t.linked_incident_ref === i.incident_ref).map((t) => t.ticket_ref),
     }));
     res.set("Cache-Control", "no-store");
@@ -253,6 +261,24 @@ export function boardRouter(): Router {
     const incident = t.linked_incident_ref ? listKnownIncidents().find((i) => i.incident_ref === t.linked_incident_ref) ?? null : null;
     res.set("Cache-Control", "no-store");
     res.json({ ticket: { ...t, notes: t.notes ?? [], first_response_at: firstResponseAt(t) }, calls, incident });
+  });
+
+  router.post("/api/incidents/:ref", requireSession, express.json({ limit: "5kb" }), (req, res) => {
+    if (req.get("x-board-request") !== "1") {
+      res.status(400).json({ error: true, code: "bad_request", message: "Missing board header." });
+      return;
+    }
+    const status = req.body?.status;
+    if (!["investigating", "identified", "monitoring", "resolved"].includes(status)) {
+      res.status(400).json({ error: true, code: "bad_status", message: "Status must be investigating, identified, monitoring or resolved." });
+      return;
+    }
+    const i = updateKnownIncident(String(req.params.ref), status);
+    if (!i) {
+      res.status(404).json({ error: true, code: "not_found", message: "No known incident with that reference." });
+      return;
+    }
+    res.json({ incident: i });
   });
 
   router.post("/api/tickets/:ref", requireSession, express.json({ limit: "10kb" }), (req, res) => {

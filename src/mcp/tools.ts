@@ -11,6 +11,7 @@ import {
   getTicketsByPhone,
   getCallLogsByPhone,
   matchKnownIncidents,
+  detectOutbreak,
   saveCallLog,
   spokenRef,
 } from "../store/ticketStore.js";
@@ -187,13 +188,24 @@ export function registerTools(server: McpServer): void {
         customer?.tier ?? null,
       );
       const urgent = ticket.severity === "P1";
+      // Repeated similar reports become a known incident automatically.
+      const outbreak = detectOutbreak(ticket);
+      const outbreakLine = !outbreak
+        ? ""
+        : outbreak.created
+          ? `We've now had ${outbreak.reports} similar reports, so I've flagged this to the security team as a wider incident and they're looking at it together. `
+          : `This matches an issue we're already investigating, so your report has been added to it. `;
       return ok({
         ticket,
         ticket_ref_spoken: spokenRef(ticket.ticket_ref),
         advice_for_caller: CALLER_ADVICE[ticket.category],
         transfer_to_agent: urgent,
+        known_incident: outbreak
+          ? { incident_ref: outbreak.incident.incident_ref, title: outbreak.incident.title, newly_detected: outbreak.created, reports: outbreak.reports }
+          : null,
         speak:
           `I have raised ticket ${spokenRef(ticket.ticket_ref)} at priority ${ticket.severity[1]}, assigned to ${ticket.assigned_team}. ` +
+          outbreakLine +
           `${CALLER_ADVICE[ticket.category]} ` +
           (urgent
             ? "Because this is critical, I am putting you through to a security analyst now."

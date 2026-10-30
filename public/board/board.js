@@ -91,8 +91,12 @@
     ]);
   }
   function signedOut() { location.href = "/board"; }
+  function myName() { try { return localStorage.getItem("iw_name") || ""; } catch (e) { return ""; } }
   function api(path, opts) {
-    return fetch(path, Object.assign({ credentials: "same-origin", cache: "no-store" }, opts || {})).then(function (r) {
+    opts = Object.assign({ credentials: "same-origin", cache: "no-store" }, opts || {});
+    var name = myName();
+    if (name) opts.headers = Object.assign({}, opts.headers || {}, { "X-Board-Name": name });
+    return fetch(path, opts).then(function (r) {
       if (r.status === 401) { signedOut(); throw new Error("Signed out"); }
       return r.json().then(function (d) { if (!r.ok) throw new Error(d.message || "Something went wrong."); return d; });
     });
@@ -138,8 +142,22 @@
     setCount("n-open", open.length);
     setCount("n-calls", state.calls.length);
     setCount("n-incidents", state.incidents.filter(function (i) { return i.status !== "resolved"; }).length);
-    $("who").textContent = "Signed in as " + state.signed_in_as;
-    if (state.session_expires) $("session").textContent = "Secure session until " + fmtTime.format(new Date(state.session_expires));
+    if (state.password_required) {
+      $("who").textContent = "Signed in as " + state.signed_in_as;
+      if (state.session_expires) $("session").textContent = "Secure session until " + fmtTime.format(new Date(state.session_expires));
+    } else {
+      $("who").replaceChildren("Working as " + (myName() || "Incident handler") + " ", el("button", { class: "linkish-dark", type: "button", text: "Change", onclick: askName }));
+      $("session").textContent = "Demo desk, no sign-in";
+      var so = document.querySelector(".side-foot form");
+      if (so) so.hidden = true;
+    }
+  }
+
+  function askName() {
+    var n = window.prompt("Your name, shown on notes you add:", myName());
+    if (n === null) return;
+    try { localStorage.setItem("iw_name", n.trim().slice(0, 40)); } catch (e) {}
+    renderChrome();
   }
 
   // ---------- alerts ----------

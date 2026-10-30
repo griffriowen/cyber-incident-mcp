@@ -69,6 +69,7 @@ a { color: inherit; }
 .count.hot { background: var(--p1); }
 .side-foot { margin-top: auto; border-top: 1px solid var(--steel-line); padding: 16px 8px 0; display: grid; gap: 8px; font-size: 13px; }
 .side-foot p { margin: 0; display: flex; gap: 8px; align-items: center; }
+.linkish-dark { background: none; border: 0; padding: 0; color: var(--straw); font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .btn.btn-ghost-dark { background: none; border: 1px solid var(--steel-line); color: #fff; border-radius: var(--radius); padding: 7px 12px; cursor: pointer; width: 100%; margin-top: 6px; }
 .btn.btn-ghost-dark:hover { background: var(--steel-2); }
 

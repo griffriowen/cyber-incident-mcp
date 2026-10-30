@@ -6,7 +6,7 @@
 #   2. Clone the repo onto the server and run this from inside it:
 #        sudo ./deploy/setup-vps.sh mcp.yourdomain.co.uk,yourdomain.co.uk <MCP_API_KEY> [BOARD_PASSWORD]
 #      The first argument is one domain or a comma-separated list (all point at this server).
-#      If no board password is given, one is generated and printed at the end.
+#      Add a board password only if you want the desk to require sign-in; without one it opens straight away.
 #
 # Result: Node app on 127.0.0.1:3000 (systemd), Caddy in front on 80/443 with an
 # automatic Let's Encrypt certificate, firewall allowing only SSH, HTTP and HTTPS.
@@ -26,10 +26,6 @@ fi
 
 DOMAIN="${DOMAINS%%,*}"                 # first domain, used in the messages below
 CADDY_SITES="${DOMAINS//,/, }"          # "a.example, example" for the Caddyfile
-if [[ -z "$BOARD_PASSWORD" ]]; then
-  BOARD_PASSWORD="$(head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)"
-  GENERATED_PASSWORD=1
-fi
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 APP_DIR=/opt/cyber-incident-mcp
@@ -144,7 +140,8 @@ Logs:         sudo journalctl -u cyber-incident-mcp -f
 Update later: sudo ./deploy/update-vps.sh   (run inside the cloned repo after git pull)
 EOF
 
-if [[ "${GENERATED_PASSWORD:-0}" == 1 ]]; then
-  echo
-  echo "Board password (save this now, it is also in $APP_DIR/.env): $BOARD_PASSWORD"
+if [[ -n "$BOARD_PASSWORD" ]]; then
+  echo "The desk requires the board password you set."
+else
+  echo "The desk is open: anyone with the link can view and update tickets (demo data only)."
 fi

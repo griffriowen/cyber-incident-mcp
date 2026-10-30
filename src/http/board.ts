@@ -16,7 +16,8 @@ import type { Ticket, TicketStatus } from "../types/incident.types.js";
  * and known incidents live. Mounted at /board by the Node server.
  *
  * Env:
- *   BOARD_PASSWORD  shared password (the board is turned off if unset)
+ *   BOARD_PASSWORD  optional shared password. If unset, the desk is open to anyone with the link
+ *                   (fine for fictional demo data); set it to require sign-in again.
  *   BOARD_SECRET    optional; signs the login cookie (falls back to MCP_API_KEY)
  */
 
@@ -62,8 +63,14 @@ function readCookie(req: Request, name: string): string | undefined {
   return undefined;
 }
 
+function passwordRequired(): boolean {
+  return Boolean(process.env.BOARD_PASSWORD);
+}
+
 function handlerName(req: Request): string {
-  const n = (readCookie(req, NAME_COOKIE) ?? "").replace(/[^\p{L}\p{N} .'-]/gu, "").trim().slice(0, 40);
+  // Open desk: the browser sends the name the handler typed in. Signed-in desk: name from the login cookie.
+  const raw = passwordRequired() ? readCookie(req, NAME_COOKIE) : req.get("x-board-name") ?? readCookie(req, NAME_COOKIE);
+  const n = (raw ?? "").replace(/[^\p{L}\p{N} .'-]/gu, "").trim().slice(0, 40);
   return n || "Incident handler";
 }
 
@@ -89,7 +96,7 @@ function tooManyAttempts(ip: string): boolean {
 }
 
 function requireSession(req: Request, res: Response, next: NextFunction): void {
-  if (sessionExpiry(readCookie(req, COOKIE))) return next();
+  if (!passwordRequired() || sessionExpiry(readCookie(req, COOKIE))) return next();
   res.status(401).json({ error: true, code: "signed_out", message: "Sign in to view the desk." });
 }
 
@@ -154,11 +161,7 @@ export function boardRouter(): Router {
   router.use("/assets", express.static(path.join(PUBLIC_DIR, "board"), { maxAge: "5m", index: false }));
 
   router.get("/", (req, res) => {
-    if (!process.env.BOARD_PASSWORD) {
-      res.status(503).type("text/plain").send("The board is turned off. Set BOARD_PASSWORD in .env and restart the server.");
-      return;
-    }
-    const page = sessionExpiry(readCookie(req, COOKIE)) ? "board.html" : "login.html";
+    const page = !passwordRequired() || sessionExpiry(readCookie(req, COOKIE)) ? "board.html" : "login.html";
     res.set("Cache-Control", "no-store");
     res.set("X-Frame-Options", "DENY");
     res.sendFile(path.join(PUBLIC_DIR, "board", page));
@@ -229,7 +232,8 @@ export function boardRouter(): Router {
       version: storeVersion(),
       server_time: new Date().toISOString(),
       signed_in_as: handlerName(req),
-      session_expires: sessionExpiry(readCookie(req, COOKIE)),
+      password_required: passwordRequired(),
+      session_expires: passwordRequired() ? sessionExpiry(readCookie(req, COOKIE)) : null,
       tickets,
       calls,
       incidents,

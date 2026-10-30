@@ -9,8 +9,7 @@ import type {
 } from "../types/incident.types.js";
 
 /**
- * Runtime-agnostic store. The host (Node on Render, or a Cloudflare Durable
- * Object) loads the data and supplies a callback that persists every change.
+ * In-memory store. The host (the Node server) loads the data and supplies a callback that persists every change.
  */
 export interface StoreData {
   tickets: Ticket[];

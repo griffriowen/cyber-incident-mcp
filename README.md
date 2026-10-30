@@ -55,17 +55,6 @@ Every tool returns a `speak` field: a ready-made sentence the bMA can say. Ticke
 
 The filesystem resets on redeploy, which conveniently resets the mock tickets.
 
-## Hosting on Cloudflare Workers
-
-The same tools run as a Worker (`worker/index.ts`, config in `wrangler.toml`). State lives in one Durable Object, so tickets and call logs survive restarts and are never put to sleep.
-
-1. Cloudflare dashboard: **Workers & Pages > Create > Import a repository**, pick this repo. Build settings: deploy command `npx wrangler deploy`, leave the rest as default.
-2. Worker **Settings > Variables and Secrets**: add secret `MCP_API_KEY`.
-3. Give the bMA `https://cyber-incident-mcp.<your-subdomain>.workers.dev/mcp/<MCP_API_KEY>`.
-4. Check it: open `/selftest/<MCP_API_KEY>`; `"passed": true` means it works.
-
-Extra endpoint on Cloudflare: `POST /reset/<MCP_API_KEY>` puts tickets and call logs back to the seed data before a demo.
-
 ## Checking everything works
 
 ```bash

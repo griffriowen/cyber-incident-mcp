@@ -1,7 +1,7 @@
 import { getCallLog, getTicketByCallId, getTicketByRef, spokenRef } from "../store/ticketStore.js";
 
 /**
- * Body for POST /api/ticket/by-call. Shared by the Node and Cloudflare hosts.
+ * Body for POST /api/ticket/by-call, called by the FLOW REST API action cell.
  * Every field is always present (empty string when unknown) so FLOW object
  * mappings stay stable, and the payload stays well under FLOW's 20KB limit.
  */

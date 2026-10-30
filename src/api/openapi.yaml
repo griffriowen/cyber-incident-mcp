@@ -7,7 +7,7 @@ info:
     so FLOW can update CKS and brief the agent. Import into storm STUDIO to create
     the TicketByCallRequest and TicketByCallResponse object types.
 servers:
-  - url: https://cyber-incident-mcp.griffriowen.workers.dev
+  - url: https://mcp.griffriowen.co.uk
 paths:
   /api/ticket/by-call:
     post:

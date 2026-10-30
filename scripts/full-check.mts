@@ -120,8 +120,6 @@ try {
     check("Desk", "Desk API is serving", Array.isArray(desk.body.tickets) && Array.isArray(desk.body.incidents));
     if (WRITE) check("Desk", "New tickets show on the desk", desk.body.tickets.length >= 5);
     check("Desk", "Desk updates need the desk header", (await http("/board/api/tickets/SEC-240981", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note: "x" }) })).status === 400);
-  } else if (desk.status === 404) {
-    check("Desk", "No desk on this host (Cloudflare serves the MCP only)", true);
   } else {
     check("Desk", "Desk API is serving", desk.status === 401, desk.status === 401 ? "password protected" : `HTTP ${desk.status}`);
   }

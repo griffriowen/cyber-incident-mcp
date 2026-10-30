@@ -30,10 +30,19 @@ echo "==> Installing packages"
 apt-get update -y
 apt-get install -y curl ca-certificates gnupg debian-keyring debian-archive-keyring apt-transport-https ufw rsync
 
-if ! command -v node >/dev/null || [[ "$(node -v | cut -d. -f1 | tr -d v)" -lt 20 ]]; then
-  curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-  apt-get install -y nodejs
+node_ok() { command -v node >/dev/null && [[ "$(node -v | cut -d. -f1 | tr -d v)" -ge 20 ]]; }
+if ! node_ok; then
+  # NodeSource first; if it doesn't support this Ubuntu release yet, fall back to Ubuntu's own package.
+  if curl -fsSL https://deb.nodesource.com/setup_22.x | bash -; then
+    apt-get install -y nodejs
+  fi
+  if ! node_ok; then
+    echo "NodeSource unavailable for this release, using Ubuntu's nodejs package"
+    apt-get install -y nodejs npm
+  fi
+  node_ok || { echo "Node.js 20 or newer is required but could not be installed." >&2; exit 1; }
 fi
+echo "Node $(node -v)"
 
 if ! command -v caddy >/dev/null; then
   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg

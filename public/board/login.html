@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Ironwatch incident board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/board/assets/board.css">
+</head>
+<body>
+  <main class="login">
+    <form method="post" action="/board/login">
+      <h1>Ironwatch incident board</h1>
+      <p>Enter the board password to see live tickets and calls.</p>
+      <p class="err" id="err" role="alert" hidden></p>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+      <button class="save" type="submit">Sign in</button>
+    </form>
+  </main>
+  <script>
+    var e = new URLSearchParams(location.search).get("error");
+    var box = document.getElementById("err");
+    if (e === "wrong") { box.textContent = "That password isn't right. Try again."; box.hidden = false; }
+    if (e === "locked") { box.textContent = "Too many attempts. Wait 10 minutes, then try again."; box.hidden = false; }
+  </script>
+</body>
+</html>

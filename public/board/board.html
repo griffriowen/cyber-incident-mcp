@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Ironwatch incident board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/board/assets/board.css">
+</head>
+<body>
+  <header class="bar">
+    <h1 class="wordmark">Ironwatch<span>Incident board</span></h1>
+    <p class="live" id="live" aria-live="polite">Connecting</p>
+    <nav class="tabs" role="tablist" aria-label="Board views">
+      <button class="tab" role="tab" id="tab-tickets" aria-selected="true" aria-controls="view-tickets">Tickets</button>
+      <button class="tab" role="tab" id="tab-calls" aria-selected="false" aria-controls="view-calls">Calls</button>
+    </nav>
+    <form method="post" action="/board/logout"><button class="signout" type="submit">Sign out</button></form>
+  </header>
+
+  <main>
+    <section class="rail" id="rail" aria-label="Open tickets by priority"></section>
+
+    <section id="view-tickets" role="tabpanel" aria-labelledby="tab-tickets">
+      <div class="view-head">
+        <h2>Tickets</h2>
+        <label class="filter">Show
+          <select id="filter">
+            <option value="open">Open tickets</option>
+            <option value="all">All tickets</option>
+          </select>
+        </label>
+      </div>
+      <ul class="strips" id="strips"></ul>
+    </section>
+
+    <section id="view-calls" role="tabpanel" aria-labelledby="tab-calls" hidden>
+      <div class="view-head"><h2>Calls handled by Aggie</h2></div>
+      <div id="calls"></div>
+    </section>
+  </main>
+
+  <div id="drawer-root"></div>
+  <script src="/board/assets/board.js"></script>
+</body>
+</html>

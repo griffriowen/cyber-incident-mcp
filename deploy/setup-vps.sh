@@ -4,21 +4,31 @@
 # Before running:
 #   1. Point your domain's DNS A record (e.g. mcp.yourdomain.co.uk) at this server's IP.
 #   2. Clone the repo onto the server and run this from inside it:
-#        sudo ./deploy/setup-vps.sh mcp.yourdomain.co.uk <MCP_API_KEY>
+#        sudo ./deploy/setup-vps.sh mcp.yourdomain.co.uk,yourdomain.co.uk <MCP_API_KEY> [BOARD_PASSWORD]
+#      The first argument is one domain or a comma-separated list (all point at this server).
+#      If no board password is given, one is generated and printed at the end.
 #
 # Result: Node app on 127.0.0.1:3000 (systemd), Caddy in front on 80/443 with an
 # automatic Let's Encrypt certificate, firewall allowing only SSH, HTTP and HTTPS.
 set -euo pipefail
 
-DOMAIN="${1:-}"
+DOMAINS="${1:-}"
 API_KEY="${2:-}"
-if [[ -z "$DOMAIN" || -z "$API_KEY" ]]; then
-  echo "Usage: sudo $0 <domain> <MCP_API_KEY>" >&2
+BOARD_PASSWORD="${3:-}"
+if [[ -z "$DOMAINS" || -z "$API_KEY" ]]; then
+  echo "Usage: sudo $0 <domain[,domain2]> <MCP_API_KEY> [BOARD_PASSWORD]" >&2
   exit 1
 fi
 if [[ $EUID -ne 0 ]]; then
   echo "Run with sudo." >&2
   exit 1
+fi
+
+DOMAIN="${DOMAINS%%,*}"                 # first domain, used in the messages below
+CADDY_SITES="${DOMAINS//,/, }"          # "a.example, example" for the Caddyfile
+if [[ -z "$BOARD_PASSWORD" ]]; then
+  BOARD_PASSWORD="$(head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)"
+  GENERATED_PASSWORD=1
 fi
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -64,6 +74,7 @@ cat > "$APP_DIR/.env" <<EOF
 PORT=3000
 HOST=127.0.0.1
 MCP_API_KEY=$API_KEY
+BOARD_PASSWORD=$BOARD_PASSWORD
 TICKET_STORE_PATH=$DATA_DIR/tickets.json
 CALL_STORE_PATH=$DATA_DIR/calls.json
 EOF
@@ -101,7 +112,7 @@ systemctl restart cyber-incident-mcp
 
 echo "==> Configuring Caddy (HTTPS)"
 cat > /etc/caddy/Caddyfile <<EOF
-$DOMAIN {
+$CADDY_SITES {
 	encode gzip
 	reverse_proxy 127.0.0.1:3000
 }
@@ -128,6 +139,12 @@ Done. Give Caddy a minute to get the certificate, then check:
   https://$DOMAIN/selftest/<MCP_API_KEY>
 
 bMA MCP URL:  https://$DOMAIN/mcp/<MCP_API_KEY>
+Ticket board: https://$DOMAIN/board  (and the root of every domain you listed)
 Logs:         sudo journalctl -u cyber-incident-mcp -f
 Update later: sudo ./deploy/update-vps.sh   (run inside the cloned repo after git pull)
 EOF
+
+if [[ "${GENERATED_PASSWORD:-0}" == 1 ]]; then
+  echo
+  echo "Board password (save this now, it is also in $APP_DIR/.env): $BOARD_PASSWORD"
+fi

@@ -7,6 +7,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { registerTools } from "./mcp/tools.js";
 import { buildByCallResponse } from "./http/byCall.js";
 import { initFsStore } from "./node/fsStore.js";
+import { boardRouter } from "./http/board.js";
 
 initFsStore();
 
@@ -36,6 +37,8 @@ function buildServer(): McpServer {
 }
 
 const app = express();
+// Behind Caddy on a VPS, trust the local proxy so req.ip and HTTPS detection are correct.
+app.set("trust proxy", "loopback");
 app.use(express.json({ limit: "100kb" }));
 
 // Log every request (token masked) so Render's Logs tab shows what the bMA and FLOW send.
@@ -54,6 +57,10 @@ app.use((req, res, next) => {
   });
   next();
 });
+
+// Incident handler board (password protected). The bare domain opens it.
+app.use("/board", boardRouter());
+app.get("/", (_req, res) => res.redirect(302, "/board"));
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });

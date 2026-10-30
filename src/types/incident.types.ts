@@ -36,6 +36,15 @@ export interface Ticket {
   linked_incident_ref: string | null;
   created_at: string;
   updated_at: string;
+  /** Handler notes and status changes, oldest first. Optional so older stored tickets still load. */
+  notes?: TicketNote[];
+}
+
+export interface TicketNote {
+  at: string;
+  author: string;
+  text: string;
+  kind: "note" | "status";
 }
 
 export interface KnownIncident {

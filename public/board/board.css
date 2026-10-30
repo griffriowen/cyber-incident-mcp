@@ -1,0 +1,225 @@
+/*
+  Ironwatch incident board.
+  Concept: a control-room strip board. Each ticket is a strip with its severity
+  as a coloured band, sorted the way a duty handler works: worst and newest first.
+*/
+:root {
+  --paper: #e9edf1;
+  --strip: #ffffff;
+  --ink: #15212c;
+  --ink-soft: #4d5b69;
+  --line: #c9d2db;
+  --p1: #c4122f;
+  --p2: #c46d00;
+  --p3: #2f6fa8;
+  --p4: #7d8a97;
+  --done: #9aa6b2;
+  --focus: #2f6fa8;
+  --font: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-tight: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.4;
+}
+button, select, textarea, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* Top bar */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 24px;
+  background: var(--ink);
+  color: #fff;
+  flex-wrap: wrap;
+}
+.wordmark { font-family: var(--font-tight); font-weight: 700; font-size: 26px; letter-spacing: 0.01em; margin: 0; }
+.wordmark span { font-weight: 500; opacity: 0.7; margin-left: 8px; }
+.tabs { display: flex; gap: 4px; margin-left: auto; }
+.tab {
+  background: none; border: 0; color: #fff; opacity: 0.65;
+  padding: 6px 12px; cursor: pointer; font-weight: 600; border-radius: 4px;
+}
+.tab[aria-selected="true"] { opacity: 1; background: rgba(255, 255, 255, 0.12); }
+.live { font-size: 14px; display: flex; align-items: center; gap: 8px; opacity: 0.85; }
+.live::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%; background: #3fbf72;
+}
+.live.stale::before { background: #e0a300; }
+.signout { background: none; border: 1px solid rgba(255, 255, 255, 0.35); color: #fff; padding: 5px 12px; border-radius: 4px; cursor: pointer; }
+
+main { padding: 20px 24px 48px; max-width: 1280px; margin: 0 auto; }
+
+/* Severity rail: open tickets per severity */
+.rail { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.rail-cell {
+  background: var(--strip);
+  border-left: 8px solid var(--band, var(--p4));
+  padding: 10px 14px;
+  display: flex; align-items: baseline; gap: 10px;
+}
+.rail-cell b { font-family: var(--font-tight); font-size: 40px; line-height: 1; font-weight: 700; }
+.rail-cell span { color: var(--ink-soft); }
+.rail-cell[data-sev="P1"] { --band: var(--p1); }
+.rail-cell[data-sev="P2"] { --band: var(--p2); }
+.rail-cell[data-sev="P3"] { --band: var(--p3); }
+.rail-cell[data-sev="P4"] { --band: var(--p4); }
+.rail-cell.zero b { color: var(--done); }
+
+/* Ticket strips */
+.view-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 10px; }
+.view-head h2 { font-family: var(--font-tight); font-size: 22px; margin: 0; font-weight: 700; }
+.filter { display: flex; gap: 8px; align-items: center; color: var(--ink-soft); }
+.filter select { background: var(--strip); border: 1px solid var(--line); padding: 4px 8px; border-radius: 4px; }
+
+.strips { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.strip {
+  display: grid;
+  grid-template-columns: 64px 130px minmax(0, 1.4fr) minmax(0, 1.2fr) 110px 110px;
+  align-items: center;
+  gap: 16px;
+  background: var(--strip);
+  border-left: 10px solid var(--band, var(--p4));
+  padding: 10px 16px 10px 12px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border-top: 0; border-right: 0; border-bottom: 0;
+}
+.strip:hover { box-shadow: inset 0 0 0 1px var(--line); }
+.strip[data-sev="P1"] { --band: var(--p1); }
+.strip[data-sev="P2"] { --band: var(--p2); }
+.strip[data-sev="P3"] { --band: var(--p3); }
+.strip[data-sev="P4"] { --band: var(--p4); }
+.strip.closed { --band: var(--done); color: var(--ink-soft); }
+
+.sev { font-family: var(--font-tight); font-weight: 700; font-size: 30px; line-height: 1; color: var(--band); }
+.ref { font-family: var(--font-tight); font-weight: 600; font-size: 20px; }
+.what b { display: block; font-weight: 600; }
+.what small, .who small { color: var(--ink-soft); font-size: 14px; }
+.who b { display: block; font-weight: 500; }
+.status {
+  justify-self: start;
+  font-size: 14px; font-weight: 600;
+  padding: 2px 8px; border-radius: 3px;
+  background: #eef2f6; color: var(--ink);
+}
+.status[data-status="escalated"] { background: #fbe3e7; color: #8d0d22; }
+.status[data-status="in_progress"] { background: #e2ecf6; color: #1f4f7a; }
+.status[data-status="resolved"], .status[data-status="closed"] { background: #eef1f4; color: var(--ink-soft); }
+.time { text-align: right; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+/* The one deliberate motion: a newly arrived ticket's band sweeps in and the strip glows once. */
+.strip { position: relative; overflow: hidden; }
+.strip.arrived::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: var(--band);
+  transform-origin: left;
+  pointer-events: none;
+  animation: sweep 1.8s ease-out forwards;
+}
+@keyframes sweep {
+  0% { transform: scaleX(0); opacity: 0.35; }
+  35% { transform: scaleX(1); opacity: 0.22; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+.empty { background: var(--strip); padding: 28px; color: var(--ink-soft); }
+
+/* Calls table */
+.calls { width: 100%; border-collapse: collapse; background: var(--strip); }
+.calls th { text-align: left; font-weight: 600; color: var(--ink-soft); font-size: 14px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.calls td { padding: 10px 12px; border-bottom: 1px solid #edf0f3; vertical-align: top; }
+.calls td.sum { max-width: 520px; color: var(--ink-soft); }
+.verif { font-weight: 600; }
+.verif[data-v="Failed"] { color: var(--p1); }
+.verif[data-v="Unverified"] { color: var(--p2); }
+.linkish { background: none; border: 0; padding: 0; color: var(--p3); font-weight: 600; cursor: pointer; text-decoration: underline; }
+
+/* Detail drawer */
+.scrim { position: fixed; inset: 0; background: rgba(21, 33, 44, 0.35); }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(560px, 100%);
+  background: var(--strip);
+  border-left: 12px solid var(--band, var(--p4));
+  overflow-y: auto;
+  padding: 24px 28px 40px;
+  transform: translateX(0);
+  transition: transform 0.2s ease-out;
+}
+.drawer[data-sev="P1"] { --band: var(--p1); }
+.drawer[data-sev="P2"] { --band: var(--p2); }
+.drawer[data-sev="P3"] { --band: var(--p3); }
+.drawer[data-sev="P4"] { --band: var(--p4); }
+.drawer-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.drawer h2 { font-family: var(--font-tight); font-size: 34px; margin: 0; line-height: 1.05; }
+.drawer .sub { color: var(--ink-soft); margin: 4px 0 0; }
+.close { background: none; border: 1px solid var(--line); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+.facts { display: grid; grid-template-columns: 150px 1fr; gap: 8px 16px; margin: 22px 0; }
+.facts dt { color: var(--ink-soft); }
+.facts dd { margin: 0; }
+.drawer h3 { font-family: var(--font-tight); font-size: 20px; margin: 26px 0 8px; }
+.drawer p { margin: 0 0 8px; max-width: 70ch; }
+.timeline { list-style: none; padding: 0; margin: 0; border-left: 2px solid var(--line); }
+.timeline li { padding: 0 0 12px 14px; position: relative; }
+.timeline li::before { content: ""; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.timeline li.tl-status::before { background: var(--band); }
+.timeline time { display: block; font-size: 14px; color: var(--ink-soft); }
+.update { margin-top: 18px; display: grid; gap: 10px; }
+.update label { font-weight: 600; }
+.update select, .update textarea { width: 100%; border: 1px solid var(--line); border-radius: 4px; padding: 8px; background: #fff; }
+.update textarea { min-height: 90px; resize: vertical; }
+.save { justify-self: start; background: var(--ink); color: #fff; border: 0; border-radius: 4px; padding: 9px 18px; font-weight: 600; cursor: pointer; }
+.save[disabled] { opacity: 0.5; cursor: default; }
+.msg { min-height: 1.4em; font-size: 14px; }
+.msg.err { color: var(--p1); }
+
+/* Login */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.login form { background: var(--strip); border-left: 10px solid var(--ink); padding: 28px 32px; width: min(380px, 100%); display: grid; gap: 12px; }
+.login h1 { font-family: var(--font-tight); font-size: 30px; margin: 0; }
+.login p { margin: 0; color: var(--ink-soft); }
+.login input { border: 1px solid var(--line); border-radius: 4px; padding: 10px; }
+.login .err { color: var(--p1); font-weight: 600; }
+
+/* Phones and narrow windows */
+@media (max-width: 860px) {
+  .bar { padding: 12px 16px; gap: 8px 12px; }
+  .wordmark { font-size: 22px; width: 100%; }
+  .tabs { margin-left: auto; }
+  .rail { gap: 8px; }
+  .rail-cell { padding: 8px 10px; gap: 8px; }
+  .rail-cell b { font-size: 30px; }
+  .rail-cell span { font-size: 14px; line-height: 1.2; }
+  main { padding: 16px 16px 40px; }
+  .rail { grid-template-columns: repeat(2, 1fr); }
+  .strip { grid-template-columns: 54px 1fr auto; grid-template-areas: "sev ref time" "sev what what" "sev who status"; gap: 4px 12px; }
+  .strip .sev { grid-area: sev; align-self: start; }
+  .strip .ref { grid-area: ref; }
+  .strip .what { grid-area: what; }
+  .strip .who { grid-area: who; }
+  .strip .status { grid-area: status; justify-self: end; }
+  .strip .time { grid-area: time; }
+  .calls thead { display: none; }
+  .calls, .calls tbody, .calls tr, .calls td { display: block; width: 100%; }
+  .calls tr { border-bottom: 1px solid var(--line); padding: 8px 0; }
+  .calls td { border: 0; padding: 2px 12px; }
+  .facts { grid-template-columns: 1fr; gap: 2px; }
+  .facts dd { margin-bottom: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strip.arrived::after { animation: none; opacity: 0; }
+  .strip.arrived { outline: 2px solid var(--band); }
+  .drawer { transition: none; }
+}

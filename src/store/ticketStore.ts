@@ -5,6 +5,7 @@ import type {
   KnownIncident,
   Severity,
   Ticket,
+  TicketStatus,
 } from "../types/incident.types.js";
 
 /**
@@ -36,7 +37,43 @@ export function snapshot(): StoreData {
   return { tickets, calls, customers, knownIncidents };
 }
 
+let version = 0;
+
+/** Increments on every change, so the board can tell when to redraw. */
+export function storeVersion(): number {
+  return version;
+}
+
+export function listTickets(): Ticket[] {
+  return [...tickets];
+}
+
+export function listCalls(): CallLog[] {
+  return [...calls];
+}
+
+/** Handler update from the board: change status and/or add a note. Returns null if the ticket doesn't exist. */
+export function updateTicket(
+  ref: string,
+  change: { status?: TicketStatus; note?: string; author: string },
+): Ticket | null {
+  const t = getTicketByRef(ref);
+  if (!t) return null;
+  const now = new Date().toISOString();
+  t.notes = t.notes ?? [];
+  if (change.status && change.status !== t.status) {
+    t.notes.push({ at: now, author: change.author, kind: "status", text: `Status changed from ${t.status.replace("_", " ")} to ${change.status.replace("_", " ")}` });
+    t.status = change.status;
+  }
+  const note = change.note?.trim();
+  if (note) t.notes.push({ at: now, author: change.author, kind: "note", text: note.slice(0, 2000) });
+  t.updated_at = now;
+  persist();
+  return t;
+}
+
 function persist(): void {
+  version += 1;
   try {
     onChange(snapshot());
   } catch (err) {

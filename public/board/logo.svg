@@ -1,10 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Ironwatch">
-  <rect x="4" y="4" width="56" height="56" rx="10" fill="#1A2B45"/>
-  <rect x="7" y="7" width="50" height="50" rx="8" fill="none" stroke="#3B5478" stroke-width="2"/>
-  <circle cx="14" cy="14" r="2.6" fill="#7F93AE"/>
-  <circle cx="50" cy="14" r="2.6" fill="#7F93AE"/>
-  <circle cx="14" cy="50" r="2.6" fill="#7F93AE"/>
-  <circle cx="50" cy="50" r="2.6" fill="#7F93AE"/>
-  <rect x="13" y="27" width="38" height="10" rx="5" fill="#0C1626"/>
-  <circle cx="32" cy="32" r="3.6" fill="#E2B43C"/>
+  <path d="M32 4l24 9v17c0 15-10 25-24 30C18 55 8 45 8 30V13z" fill="#1B2433" stroke="#3A4A63" stroke-width="2"/>
+  <path d="M17 31c4.5-6 9.5-9 15-9s10.5 3 15 9c-4.5 6-9.5 9-15 9s-10.5-3-15-9z" fill="#0B0F16" stroke="#56698A" stroke-width="2"/>
+  <circle cx="32" cy="31" r="5" fill="#F2B135"/>
+  <circle cx="32" cy="31" r="1.8" fill="#0B0F16"/>
 </svg>

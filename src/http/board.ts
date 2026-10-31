@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import express, { type NextFunction, type Request, type Response, type Router } from "express";
 import {
+  findCustomerById,
   getTicketByRef,
   listCalls,
   listKnownIncidents,
@@ -13,7 +14,7 @@ import {
 import type { Ticket, TicketStatus } from "../types/incident.types.js";
 
 /**
- * Ironwatch incident desk: a password-protected web app showing tickets, calls
+ * Ironwatch incident desk: a web app (optionally password protected) showing tickets, calls
  * and known incidents live. Mounted at /board by the Node server.
  *
  * Env:
@@ -123,7 +124,10 @@ function ticketSummary(t: Ticket) {
     assigned_team: t.assigned_team,
     affected_system: t.affected_system,
     caller_name: t.caller_name,
+    caller_phone: t.caller_phone,
     organisation: t.organisation,
+    customer_tier: findCustomerById(t.customer_id)?.tier ?? null,
+    description: (t.description ?? "").slice(0, 240),
     linked_incident_ref: t.linked_incident_ref,
     created_at: t.created_at,
     updated_at: t.updated_at,
@@ -220,6 +224,7 @@ export function boardRouter(): Router {
         call_reason: c.call_reason,
         ticket_ref: c.ticket_ref,
         transfer_priority: c.transfer_priority,
+        advice_given: c.advice_given,
         summary: c.summary,
         notes: c.notes,
       }));
@@ -260,7 +265,9 @@ export function boardRouter(): Router {
       .sort((a, b) => a.logged_at.localeCompare(b.logged_at));
     const incident = t.linked_incident_ref ? listKnownIncidents().find((i) => i.incident_ref === t.linked_incident_ref) ?? null : null;
     res.set("Cache-Control", "no-store");
-    res.json({ ticket: { ...t, notes: t.notes ?? [], first_response_at: firstResponseAt(t) }, calls, incident });
+    const c = findCustomerById(t.customer_id);
+    const customer = c ? { role: c.role, tier: c.tier } : null;
+    res.json({ ticket: { ...t, notes: t.notes ?? [], first_response_at: firstResponseAt(t) }, calls, incident, customer });
   });
 
   router.post("/api/incidents/:ref", requireSession, express.json({ limit: "5kb" }), (req, res) => {

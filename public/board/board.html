@@ -1,88 +1,121 @@
 <!doctype html>
-<html lang="en-GB">
+<html lang="en-GB" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark light">
   <title>Ironwatch incident desk</title>
   <link rel="icon" href="/board/assets/logo.svg" type="image/svg+xml">
+  <script>
+    // Apply the saved theme before first paint so the page never flashes the wrong colours.
+    try { var th = localStorage.getItem("iw_theme"); if (th === "light" || th === "dark") document.documentElement.dataset.theme = th; } catch (e) {}
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Saira+Stencil+One&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/board/assets/board.css">
 </head>
 <body>
   <a class="skip" href="#view">Skip to content</a>
   <div class="app">
-    <aside class="side">
+    <aside class="side" aria-label="Desk navigation">
       <a class="brand" href="#/overview" aria-label="Ironwatch, overview">
-        <svg class="mark" id="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
-          <rect x="4" y="4" width="56" height="56" rx="10" fill="#1A2B45"/>
-          <rect x="7" y="7" width="50" height="50" rx="8" fill="none" stroke="#3B5478" stroke-width="2"/>
-          <circle cx="14" cy="14" r="2.6" fill="#7F93AE"/><circle cx="50" cy="14" r="2.6" fill="#7F93AE"/>
-          <circle cx="14" cy="50" r="2.6" fill="#7F93AE"/><circle cx="50" cy="50" r="2.6" fill="#7F93AE"/>
-          <rect x="13" y="27" width="38" height="10" rx="5" fill="#0C1626"/>
-          <circle class="eye" cx="32" cy="32" r="3.6" fill="#E2B43C"/>
-        </svg>
-        <span>
-          <span class="wordmark">Ironwatch</span>
-          <span class="brand-sub">Incident desk</span>
+        <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>
+        <span class="brand-text">
+          <span class="wordmark">IRONWATCH</span>
+          <span class="brand-sub">Security operations desk</span>
         </span>
       </a>
 
       <nav class="nav" aria-label="Desk">
-        <a href="#/overview" data-nav="overview">
-          <svg class="ico" aria-hidden="true"><use href="#i-gauge"/></svg><span>Overview</span><b class="count" id="n-waiting"></b>
-        </a>
-        <a href="#/tickets" data-nav="tickets">
-          <svg class="ico" aria-hidden="true"><use href="#i-ticket"/></svg><span>Tickets</span><b class="count" id="n-open"></b>
-        </a>
-        <a href="#/calls" data-nav="calls">
-          <svg class="ico" aria-hidden="true"><use href="#i-phone"/></svg><span>Calls</span><b class="count" id="n-calls"></b>
-        </a>
-        <a href="#/incidents" data-nav="incidents">
-          <svg class="ico" aria-hidden="true"><use href="#i-radar"/></svg><span>Known incidents</span><b class="count" id="n-incidents"></b>
-        </a>
+        <p class="nav-label">Workspace</p>
+        <a href="#/overview" data-nav="overview"><svg class="ico" aria-hidden="true"><use href="#i-grid"/></svg><span>Overview</span><b class="count" id="n-waiting"></b></a>
+        <a href="#/tickets" data-nav="tickets"><svg class="ico" aria-hidden="true"><use href="#i-ticket"/></svg><span>Ticket queue</span><b class="count" id="n-open"></b></a>
+        <a href="#/calls" data-nav="calls"><svg class="ico" aria-hidden="true"><use href="#i-phone"/></svg><span>Call log</span><b class="count" id="n-calls"></b></a>
+        <a href="#/incidents" data-nav="incidents"><svg class="ico" aria-hidden="true"><use href="#i-radar"/></svg><span>Major incidents</span><b class="count" id="n-incidents"></b></a>
+
+        <p class="nav-label">Views</p>
+        <div id="side-views"></div>
       </nav>
 
       <div class="side-foot">
-        <p class="who"><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg><span id="who">Signing in</span></p>
-        <p class="session"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg><span id="session">Secure session</span></p>
-        <form method="post" action="/board/logout"><button class="btn btn-ghost-dark" type="submit">Sign out</button></form>
+        <button class="who" type="button" id="who-btn" title="Change the name shown on your notes">
+          <span class="avatar" id="avatar" aria-hidden="true">IH</span>
+          <span class="who-text"><span id="who">Connecting</span><span class="who-sub" id="session">Demo desk</span></span>
+        </button>
+        <div class="side-tools">
+          <button class="icon-btn" type="button" id="theme-btn" title="Switch light or dark theme" aria-label="Switch theme"><svg class="ico" aria-hidden="true"><use href="#i-contrast"/></svg></button>
+          <button class="icon-btn" type="button" id="sound-btn" title="New-ticket chime" aria-label="New-ticket chime" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-bell-off"/></svg></button>
+          <button class="icon-btn" type="button" id="keys-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"><svg class="ico" aria-hidden="true"><use href="#i-keyboard"/></svg></button>
+          <form method="post" action="/board/logout" id="signout"><button class="icon-btn" type="submit" title="Sign out" aria-label="Sign out"><svg class="ico" aria-hidden="true"><use href="#i-logout"/></svg></button></form>
+        </div>
       </div>
     </aside>
 
     <div class="main">
       <header class="topbar">
-        <h1 class="page-title" id="page-title">Overview</h1>
-        <p class="live" id="live" aria-live="polite"><span class="live-dot" aria-hidden="true"></span><span id="live-text">Connecting</span></p>
+        <div class="crumbs">
+          <span class="crumb-root">Desk</span>
+          <svg class="ico ico-sm" aria-hidden="true"><use href="#i-chevron"/></svg>
+          <h1 class="page-title" id="page-title">Overview</h1>
+        </div>
+        <button class="search-trigger" type="button" id="search-btn" aria-label="Search tickets and commands">
+          <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+          <span>Search tickets, callers, commands</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <div class="top-right">
+          <span class="posture" id="posture" data-level="normal"><i aria-hidden="true"></i><span id="posture-text">Normal</span></span>
+          <span class="live" id="live" aria-live="polite"><span class="live-dot" aria-hidden="true"></span><span id="live-text">Connecting</span></span>
+          <span class="clock-uk" id="clock-uk" title="UK time">--:--</span>
+        </div>
       </header>
+      <div id="banner"></div>
       <main id="view" tabindex="-1"></main>
     </div>
   </div>
 
   <div class="toasts" id="toasts" aria-live="assertive"></div>
+  <div id="overlay"></div>
 
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <symbol id="mark" viewBox="0 0 64 64">
-      <rect x="4" y="4" width="56" height="56" rx="10" fill="#1A2B45"/>
-      <rect x="7" y="7" width="50" height="50" rx="8" fill="none" stroke="#3B5478" stroke-width="2"/>
-      <circle cx="14" cy="14" r="2.6" fill="#7F93AE"/><circle cx="50" cy="14" r="2.6" fill="#7F93AE"/>
-      <circle cx="14" cy="50" r="2.6" fill="#7F93AE"/><circle cx="50" cy="50" r="2.6" fill="#7F93AE"/>
-      <rect x="13" y="27" width="38" height="10" rx="5" fill="#0C1626"/>
-      <circle class="eye" cx="32" cy="32" r="3.6" fill="#E2B43C"/>
+      <path d="M32 4l24 9v17c0 15-10 25-24 30C18 55 8 45 8 30V13z" fill="#1B2433" stroke="#3A4A63" stroke-width="2"/>
+      <path d="M17 31c4.5-6 9.5-9 15-9s10.5 3 15 9c-4.5 6-9.5 9-15 9s-10.5-3-15-9z" fill="#0B0F16" stroke="#56698A" stroke-width="2"/>
+      <circle cx="32" cy="31" r="5" fill="#F2B135"/>
+      <circle cx="32" cy="31" r="1.8" fill="#0B0F16"/>
     </symbol>
-    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 16l4-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-    <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 7v10" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"/></symbol>
-    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6 3h3l2 5-2 1.5a11 11 0 0 0 5.5 5.5L16 13l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
-    <symbol id="i-radar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 12l6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21a8 8 0 0 1 16 0" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-    <symbol id="i-shield-ok" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-shield-q" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 8v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.2" r="1.2" fill="currentColor"/></symbol>
-    <symbol id="i-shield-x" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9.5 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M3.5 7h17v3a2 2 0 0 0 0 4v3h-17v-3a2 2 0 0 0 0-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14.5 7.5v9" stroke="currentColor" stroke-width="1.8" stroke-dasharray="2 2"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6 3h3l2 5-2 1.5a11 11 0 0 0 5.5 5.5L16 13l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-radar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 12l6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-shield-ok" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-shield-q" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 8v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.2" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-shield-x" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.5 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><rect x="4.5" y="8" width="15" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 4.5V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="3.8" r="1.2" fill="currentColor"/><circle cx="9.3" cy="13.2" r="1.3" fill="currentColor"/><circle cx="14.7" cy="13.2" r="1.3" fill="currentColor"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14v11l-4.5 4.5H5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 9h7M8.5 12.5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-flow" viewBox="0 0 24 24"><path d="M4 12h5l2-5 3 10 2-5h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-building" viewBox="0 0 24 24"><path d="M4.5 20.5V5l9-1.5v17M13.5 9h6v11.5M3 20.5h18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 8h2M8 11.5h2M8 15h2M16.5 12.5h.5M16.5 16h.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 21a8 8 0 0 1 16 0" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-bell-off" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 9.5-4.9M18 11v5.5l1.5 1.5h-15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6 9.5h.5M9.5 9.5h.5M13 9.5h.5M16.5 9.5h1M7.5 14.5h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 4.5H6.5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2H14M10 12h10m-3.5-3.5L20 12l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5.5 21V4M5.5 4.5h11l-2 4 2 4h-11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="10" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
   </svg>
 
   <script src="/board/assets/board.js"></script>

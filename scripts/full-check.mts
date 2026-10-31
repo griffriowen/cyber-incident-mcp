@@ -58,6 +58,14 @@ try {
   const unknown = await tool("identify_caller", { caller_phone: "07700 900999" });
   check("identify_caller", "Unknown number returns found:false (not an error)", !unknown.error && unknown.data.found === false);
   check("identify_caller", "Missing input is a clean error", (await tool("identify_caller", {})).error);
+  const byName = await tool("identify_caller", { caller_name: "James", organisation: "Harrow Valley" });
+  check("identify_caller", "Verifies James by name and short organisation, no phone", byName.data.verification === "Verified" && byName.data.customer?.customer_id === "CUST-1002");
+  check("identify_caller", "Name-only lookup returns his open ticket", (byName.data.open_ticket_refs ?? []).includes("SEC-240981"));
+  const wrongOrg = await tool("identify_caller", { caller_name: "James Okafor", organisation: "Kestrel Logistics" });
+  check("identify_caller", "Right name, wrong organisation is Unverified and reveals nothing", wrongOrg.data.verification === "Unverified" && !wrongOrg.data.customer);
+  const spoof = await tool("identify_caller", { caller_phone: "07590412370", caller_name: "Priya Shah", organisation: "Kestrel Logistics" });
+  check("identify_caller", "Known number, different person is Failed and reveals nothing", spoof.data.verification === "Failed" && !spoof.data.customer);
+  check("get_ticket_status", "Finds tickets by name and organisation", (await tool("get_ticket_status", { caller_name: "James Okafor", organisation: "Harrow Valley Housing" })).data.found);
 
   const st = await tool("get_ticket_status", { ticket_ref: "SEC 240981" });
   check("get_ticket_status", "Finds ticket by reference (loose format)", st.data.found && st.data.ticket.ticket_ref === "SEC-240981");
@@ -84,6 +92,8 @@ try {
     const dup = await tool("create_ticket", { call_id: `FC-${run}-1`, caller_name: "Priya Shah", category: "ransomware", affected_system: "Finance laptop", description: "again" });
     check("create_ticket", "Same call can't raise two tickets", dup.data.duplicate === true && dup.data.ticket.ticket_ref === p1.data.ticket.ticket_ref);
     const newCaller = await tool("create_ticket", { call_id: `FC-${run}-3`, caller_name: "Griff Owen", organisation: "Content Guru", caller_phone: "07700900999", category: "lost_device", affected_system: "Work phone", description: "Left on a train." });
+    const noPhone = await tool("create_ticket", { call_id: `FC-${run}-np`, caller_name: "Sarah", organisation: "Northbridge Legal", category: "lost_device", affected_system: "work tablet", description: "Left the tablet on a train." });
+    check("create_ticket", "Links the customer from name and organisation when there is no phone", noPhone.data.ticket.customer_id === "CUST-1001");
     check("create_ticket", "Works for callers with no customer record", newCaller.data.ticket.customer_id === null && newCaller.data.ticket.severity === "P3");
 
     // ---------- Call logging and the FLOW endpoint ----------

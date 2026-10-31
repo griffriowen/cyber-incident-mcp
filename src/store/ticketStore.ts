@@ -199,6 +199,72 @@ export function findCustomerById(id: string | null | undefined): Customer | null
   return customers.find((c) => c.customer_id === id) ?? null;
 }
 
+// ---------- Matching callers by what they say ----------
+// Callers give their name and organisation out loud, so matching is forgiving:
+// "James" matches James Okafor, "Harrow Valley" matches Harrow Valley Housing,
+// and company suffixes such as Ltd or LLP are ignored.
+
+const ORG_NOISE = new Set(["ltd", "limited", "llp", "plc", "inc", "group", "uk", "the", "and", "co", "company", "services"]);
+
+function words(text: string | null | undefined): string[] {
+  return (text ?? "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/** True when every word the caller said is part of the record's name, and the first name matches. */
+export function nameMatches(said: string | null | undefined, record: string): boolean {
+  const s = words(said), r = words(record);
+  if (!s.length || !r.length) return false;
+  return s[0] === r[0] && s.every((w) => r.includes(w));
+}
+
+/** Same person, whichever side gave the shorter form ("James" and "James Okafor"). */
+function sameName(a: string | null | undefined, b: string | null | undefined): boolean {
+  return Boolean(a && b) && (nameMatches(a, b!) || nameMatches(b, a!));
+}
+
+/** True when the organisation the caller gave is the record's organisation, or a short form of it. */
+export function organisationMatches(said: string | null | undefined, record: string | null | undefined): boolean {
+  const s = words(said).filter((w) => !ORG_NOISE.has(w));
+  const r = words(record).filter((w) => !ORG_NOISE.has(w));
+  if (!s.length || !r.length) return false;
+  return s.every((w) => r.includes(w)) || r.every((w) => s.includes(w));
+}
+
+/** The customer whose name and organisation both match what the caller said, if exactly one does. */
+export function findCustomerByName(name: string | null | undefined, organisation: string | null | undefined): Customer | null {
+  const hits = customers.filter((c) => nameMatches(name, c.name) && organisationMatches(organisation, c.organisation));
+  return hits.length === 1 ? hits[0] : null;
+}
+
+/** Tickets raised for this customer, by customer ID, phone number or name and organisation. Newest first. */
+export function getTicketsForCustomer(c: Customer): Ticket[] {
+  const phone = normalisePhone(c.phone);
+  return tickets
+    .filter((t) => t.customer_id === c.customer_id || (phone && normalisePhone(t.caller_phone) === phone) || (sameName(t.caller_name, c.name) && organisationMatches(t.organisation, c.organisation)))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/** Calls logged for this customer, by phone number or name and organisation. Newest first. */
+export function getCallLogsForCustomer(c: Customer, limit = 3): CallLog[] {
+  const phone = normalisePhone(c.phone);
+  return calls
+    .filter((l) => (phone && normalisePhone(l.caller_phone) === phone) || (sameName(l.caller_name, c.name) && organisationMatches(l.organisation, c.organisation)))
+    .sort((a, b) => b.logged_at.localeCompare(a.logged_at))
+    .slice(0, limit);
+}
+
+/** Tickets for a caller with no customer record, matched on the name and organisation they gave. */
+export function getTicketsByName(name: string, organisation: string | null | undefined): Ticket[] {
+  return tickets
+    .filter((t) => sameName(name, t.caller_name) && (!organisation || organisationMatches(organisation, t.organisation)))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
 export function createTicket(
   input: Omit<
     Ticket,

@@ -5,17 +5,23 @@ import {
   CALLER_ADVICE,
   createTicket,
   findCustomerById,
+  findCustomerByName,
   findCustomerByPhone,
+  getCallLogsForCustomer,
   getTicketByCallId,
+  getTicketsByName,
+  getTicketsForCustomer,
+  nameMatches,
+  normalisePhone,
+  organisationMatches,
   getTicketByRef,
   getTicketsByPhone,
-  getCallLogsByPhone,
   matchKnownIncidents,
   detectOutbreak,
   saveCallLog,
   spokenRef,
 } from "../store/ticketStore.js";
-import type { ToolError } from "../types/incident.types.js";
+import type { Customer, ToolError } from "../types/incident.types.js";
 
 const CATEGORIES = [
   "ransomware",
@@ -50,46 +56,74 @@ function safe<A>(fn: (args: A) => CallToolResult) {
   };
 }
 
+function verifiedPayload(customer: Customer, verification: "Verified" | "Unverified", guidance?: string): Record<string, unknown> {
+  const open = getTicketsForCustomer(customer).filter((t) => t.status !== "resolved" && t.status !== "closed");
+  const first = customer.name.split(" ")[0];
+  return {
+    found: true,
+    verified: verification === "Verified",
+    verification,
+    customer,
+    open_ticket_refs: open.map((t) => t.ticket_ref),
+    // Earlier calls logged with log_call. Only use these once the caller is verified.
+    recent_calls: getCallLogsForCustomer(customer).map((c) => ({ logged_at: c.logged_at, call_reason: c.call_reason, ticket_ref: c.ticket_ref, summary: c.summary })),
+    speak: verification !== "Verified"
+      ? ""
+      : open.length
+        ? `Thanks ${first}. I can see you already have ${open.length} open ticket${open.length > 1 ? "s" : ""} with us. Is this about ${open.length > 1 ? "one of those" : "that"}, or something new?`
+        : `Thanks ${first}. Can you tell me briefly what's happened?`,
+    ...(guidance ? { guidance } : {}),
+  };
+}
+
 export function registerTools(server: McpServer): void {
   server.registerTool(
     "identify_caller",
     {
       title: "Identify caller",
       description:
-        "Look up the caller's record by phone number or customer ID. Call this at the start of the conversation to greet the caller by name and confirm their organisation.",
+        "Check who is calling. Send the caller_name and organisation the caller gave you; add caller_phone if you have it. Returns verification (Verified, Unverified or Failed) and, only when Verified, the customer record, open tickets and earlier calls.",
       inputSchema: {
-        caller_phone: z.string().optional().describe("Caller's phone number, e.g. +447700900101"),
+        caller_name: z.string().optional().describe("Name exactly as the caller said it, e.g. James or James Okafor"),
+        organisation: z.string().optional().describe("Organisation exactly as the caller said it, e.g. Harrow Valley"),
+        caller_phone: z.string().optional().describe("Caller's phone number, if known, e.g. +447700900101"),
         customer_id: z.string().optional().describe("Customer ID from CKS, if known"),
       },
     },
-    safe(({ caller_phone, customer_id }: { caller_phone?: string; customer_id?: string }) => {
-      if (!caller_phone && !customer_id) {
-        return fail("missing_input", "Provide caller_phone or customer_id.");
+    safe(({ caller_name, organisation, caller_phone, customer_id }: { caller_name?: string; organisation?: string; caller_phone?: string; customer_id?: string }) => {
+      const phone = normalisePhone(caller_phone) ? caller_phone : undefined;
+      if (!caller_name && !organisation && !phone && !customer_id) {
+        return fail("missing_input", "Provide caller_name and organisation (and caller_phone if you have it).");
       }
-      const customer = findCustomerById(customer_id) ?? findCustomerByPhone(caller_phone);
-      if (!customer) {
+      const said = Boolean(caller_name || organisation);
+      const byRecord = findCustomerById(customer_id) ?? findCustomerByPhone(phone);
+      const verifiedRecord = (c: Customer | null) => c && nameMatches(caller_name, c.name) && organisationMatches(organisation, c.organisation);
+
+      // Phone only, no name given yet: the original behaviour, for callers that look up before asking.
+      if (byRecord && !said) {
+        return ok(verifiedPayload(byRecord, "Unverified", "Record found for this number. Ask for their name and organisation and call identify_caller again with them before sharing anything."));
+      }
+
+      // The number belongs to a customer but the caller gave different details: do not reveal anything.
+      if (byRecord && !verifiedRecord(byRecord)) {
         return ok({
-          found: false,
-          speak: "I could not find your details on our system. Could you tell me your name and organisation, please?",
+          found: true,
+          verified: false,
+          verification: "Failed",
+          speak: "Sorry, I can't match those details. Could you confirm your full name and the organisation you're calling from?",
+          guidance: "Ask once more for name and organisation. If they still do not match, treat the caller as Failed verification.",
         });
       }
-      const open = getTicketsByPhone(customer.phone).filter(
-        (t) => t.status !== "resolved" && t.status !== "closed",
-      );
+
+      const customer = byRecord ?? findCustomerByName(caller_name, organisation);
+      if (customer) return ok(verifiedPayload(customer, "Verified"));
+
       return ok({
-        found: true,
-        customer,
-        open_ticket_refs: open.map((t) => t.ticket_ref),
-        // Earlier calls logged with log_call. Only use these once the caller is verified.
-        recent_calls: getCallLogsByPhone(customer.phone).map((c) => ({
-          logged_at: c.logged_at,
-          call_reason: c.call_reason,
-          ticket_ref: c.ticket_ref,
-          summary: c.summary,
-        })),
-        speak: open.length
-          ? `Thanks ${customer.name.split(" ")[0]}, I can see you are calling from ${customer.organisation}. You already have ${open.length} open ticket${open.length > 1 ? "s" : ""} with us. Is this about ${open.length > 1 ? "one of those" : "that"}, or something new?`
-          : `Thanks ${customer.name.split(" ")[0]}, I can see you are calling from ${customer.organisation}. What has happened?`,
+        found: false,
+        verified: false,
+        verification: "Unverified",
+        speak: "Thanks, I'll take some details and get this logged straight away.",
+        guidance: "No customer record matches. Treat as a new, Unverified caller: they can report an incident but must not be told about existing tickets.",
       });
     }),
   );
@@ -169,7 +203,7 @@ export function registerTools(server: McpServer): void {
           });
         }
       }
-      const customer = findCustomerById(args.customer_id) ?? findCustomerByPhone(args.caller_phone);
+      const customer = findCustomerById(args.customer_id) ?? findCustomerByPhone(args.caller_phone) ?? findCustomerByName(args.caller_name, args.organisation);
       const ticket = createTicket(
         {
           call_id: args.call_id ?? null,
@@ -277,10 +311,12 @@ export function registerTools(server: McpServer): void {
         "Look up an existing ticket by reference, or the caller's most recent tickets by phone number. Use when the caller is ringing back about something already reported.",
       inputSchema: {
         ticket_ref: z.string().optional().describe("e.g. SEC-240981, or digits only"),
+        caller_name: z.string().optional().describe("The verified caller's name, if there is no reference"),
+        organisation: z.string().optional(),
         caller_phone: z.string().optional(),
       },
     },
-    safe(({ ticket_ref, caller_phone }: { ticket_ref?: string; caller_phone?: string }) => {
+    safe(({ ticket_ref, caller_name, organisation, caller_phone }: { ticket_ref?: string; caller_name?: string; organisation?: string; caller_phone?: string }) => {
       if (ticket_ref) {
         const t = getTicketByRef(ticket_ref);
         if (!t) {
@@ -295,10 +331,11 @@ export function registerTools(server: McpServer): void {
           speak: `Ticket ${spokenRef(t.ticket_ref)} is currently ${t.status.replace("_", " ")} with ${t.assigned_team}, last updated ${new Date(t.updated_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}.`,
         });
       }
-      if (caller_phone) {
-        const list = getTicketsByPhone(caller_phone).slice(0, 3);
+      if (caller_name || normalisePhone(caller_phone)) {
+        const who = findCustomerByName(caller_name, organisation) ?? findCustomerByPhone(caller_phone);
+        const list = (who ? getTicketsForCustomer(who) : caller_name ? getTicketsByName(caller_name, organisation) : getTicketsByPhone(caller_phone!)).slice(0, 3);
         if (!list.length) {
-          return ok({ found: false, speak: "I cannot see any tickets for this number. Do you have a reference?" });
+          return ok({ found: false, speak: "I can't see any tickets for you. Do you have a reference?" });
         }
         return ok({
           found: true,
@@ -309,10 +346,10 @@ export function registerTools(server: McpServer): void {
             status: t.status,
             updated_at: t.updated_at,
           })),
-          speak: `I can see ${list.length} recent ticket${list.length > 1 ? "s" : ""} for this number. The latest is ${spokenRef(list[0].ticket_ref)}, which is ${list[0].status.replace("_", " ")}.`,
+          speak: `I can see ${list.length} recent ticket${list.length > 1 ? "s" : ""} for you. The latest is ${spokenRef(list[0].ticket_ref)}, which is ${list[0].status.replace("_", " ")}.`,
         });
       }
-      return fail("missing_input", "Provide ticket_ref or caller_phone.");
+      return fail("missing_input", "Provide ticket_ref, or the caller_name and organisation.");
     }),
   );
 }

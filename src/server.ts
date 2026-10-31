@@ -130,6 +130,7 @@ app.get("/selftest/:key", async (req, res) => {
     steps.push({ step: "tools/list", ok: true, tools: tools.map((t) => t.name) });
     const calls: Array<[string, Record<string, unknown>]> = [
       ["identify_caller", { caller_phone: "07590412370" }],
+      ["identify_caller", { caller_name: "James", organisation: "Harrow Valley" }],
       ["get_ticket_status", { ticket_ref: "SEC-240981" }],
       ["get_ticket_status", { caller_phone: "07590412370" }],
       ["check_known_incidents", { category: "phishing", affected_system: "email", description: "entered password on a fake microsoft sign in page" }],
